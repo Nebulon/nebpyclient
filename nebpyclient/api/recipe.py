@@ -254,7 +254,7 @@ class RecipeRecordList:
         self.__cursor = read_value(
             "cursor", response, str, False)
         self.__items = read_value(
-            "records", response, RecipeRecord, True)
+            "items", response, RecipeRecord, True)
 
     @property
     def cursor(self) -> str:

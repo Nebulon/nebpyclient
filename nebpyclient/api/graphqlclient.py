@@ -256,7 +256,7 @@ class GraphQLClient:
         filename = os.path.join(dir_name, '../VERSION')
 
         with open(filename, "r") as fh:
-            client_version = fh.read()
+            client_version = fh.read().strip()
 
         self.session.headers.update({
             "Nebulon-Client-App": f"nebpyclient/{client_version}",
