@@ -1633,7 +1633,6 @@ class NPodsMixin(NebMixin):
         delivery_response = token_response.deliver_token()
 
         # wait for recipe completion
-        # TODO: Nebulon ON now returns a different response
         recipe_uuid = delivery_response["recipe_uuid_to_wait_on"]
         npod_uuid = delivery_response["npod_uuid_to_wait_on"]
 
@@ -1656,10 +1655,10 @@ class NPodsMixin(NebMixin):
             # based on the query there should be exactly one
             recipe = recipes.items[0]
 
-            if recipe.state == RecipeState.FAILED:
+            if recipe.state == RecipeState.Failed:
                 raise Exception(f"nPod creation failed: {recipe.status}")
 
-            if recipe.state == RecipeState.COMPLETED:
+            if recipe.state == RecipeState.Completed:
                 npod_list = self.get_npods(
                     npod_filter=NPodFilter(
                         uuid=UuidFilter(
