@@ -25,7 +25,7 @@ Storage.
 
 This documentation should be supplemental and attempts to explain the
 installation procedure of the SDK, getting started with the SDK, and
-provides details of teh exposed APIs.
+provides details of the exposed APIs.
 
 :doc:`installation`
    How to obtain a copy of the source code, build instructions, and how
