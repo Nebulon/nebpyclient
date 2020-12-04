@@ -353,22 +353,22 @@ class UpdateUserInput:
         """The user's time zone"""
         return self.__time_zone
 
-    @staticmethod
-    def fields():
-        return [
-            "name",
-            "password",
-            "note",
-            "email",
-            "userGroupUIDs",
-            "firstName",
-            "lastName",
-            "mobilePhone",
-            "businessPhone",
-            "inactive",
-            "sendNotification",
-            "timeZone",
-        ]
+    @property
+    def as_dict(self):
+        result = dict()
+        result["name"] = self.name
+        result["password"] = self.password
+        result["note"] = self.note
+        result["email"] = self.email
+        result["userGroupUIDs"] = self.user_group_uuids
+        result["firstName"] = self.first_name
+        result["lastName"] = self.last_name
+        result["mobilePhone"] = self.mobile_phone
+        result["businessPhone"] = self.business_phone
+        result["inactive"] = self.inactive
+        result["sendNotification"] = self.send_notification
+        result["timeZone"] = self.time_zone
+        return result
 
 
 class CreateUserInput:
@@ -505,22 +505,22 @@ class CreateUserInput:
         """The user's time zone"""
         return self.__time_zone
 
-    @staticmethod
-    def fields():
-        return [
-            "name",
-            "password",
-            "note",
-            "email",
-            "userGroupUIDs",
-            "firstName",
-            "lastName",
-            "mobilePhone",
-            "businessPhone",
-            "inactive",
-            "sendNotification",
-            "timeZone",
-        ]
+    @property
+    def as_dict(self):
+        result = dict()
+        result["name"] = self.name
+        result["password"] = self.password
+        result["note"] = self.note
+        result["email"] = self.email
+        result["userGroupUUID"] = self.user_group_uuid
+        result["firstName"] = self.first_name
+        result["lastName"] = self.last_name
+        result["mobilePhone"] = self.mobile_phone
+        result["businessPhone"] = self.business_phone
+        result["inactive"] = self.inactive
+        result["sendNotification"] = self.send_notification
+        result["timeZone"] = self.time_zone
+        return result
 
 
 class UserPreferences:
