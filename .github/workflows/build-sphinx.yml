@@ -16,9 +16,13 @@ jobs:
 
     steps:
       - name: Install prerequisites
+        env:
+          DEBIAN_FRONTEND: noninteractive
+          TZ: America/Los_Angeles
         run: |
           set -x
           apt-get update
+          apt-get install -y tzdata
           apt-get install -y git rsync python3-sphinx
         shell: bash
 
