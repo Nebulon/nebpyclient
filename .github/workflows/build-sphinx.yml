@@ -23,7 +23,7 @@ jobs:
           set -x
           apt-get update
           apt-get install -y tzdata
-          apt-get install -y git rsync python3-sphinx
+          apt-get install -y git build-essential rsync python3-sphinx
         shell: bash
 
       - name: Clone repository
