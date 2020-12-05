@@ -12,14 +12,14 @@ on:
 jobs:
   build_sphinx_job:
     runs-on: ubuntu-latest
-    container: debian:buster-slim
+    container: ubuntu:bionic
 
     steps:
       - name: Install prerequisites
         run: |
           set -x
           apt-get update
-          apt-get install -y git rsync
+          apt-get install -y git rsync python3
           python3 -m pip install sphinx
         shell: bash
 
