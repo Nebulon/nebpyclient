@@ -24,7 +24,7 @@ pip install nebpyclient
 Or
 
 ```bash
-pip install nebpyclient
+python3 -m pip install nebpyclient
 ```
 
 ### Installation from Source Code
