@@ -1,4 +1,4 @@
-Nebulon Python SDK documentation
+Nebulon Python SDK
 ==============================================
 
 .. toctree::
@@ -25,7 +25,7 @@ Storage.
 
 This documentation should be supplemental and attempts to explain the
 installation procedure of the SDK, getting started with the SDK, and
-provides details of the exposed APIs.
+provides details of teh exposed APIs.
 
 :doc:`installation`
    How to obtain a copy of the source code, build instructions, and how
@@ -43,7 +43,7 @@ Community
 
 To learn what other #nebNerds are doing with the Nebulon Python SDK client,
 to share an implementation or contribute code, or to interact with other
-#nebNerds, visit the `Nebulon Community Slack <https://nebnerds.slack.com/>`_.
+#nebNerds, visit the `Nebulon Community Slack <https://slack.nebulon.cm/>`_.
 
 
 Changelog

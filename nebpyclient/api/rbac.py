@@ -142,7 +142,7 @@ class CreateRBACRoleInput:
     Rights are defined through a string with the format
     `{resource}/{permission}`, where the following resources are available:
 
-    * `*`
+    * ``*``
     * ``Datacenter``
     * ``Lab``
     * ``Audit``
@@ -166,12 +166,12 @@ class CreateRBACRoleInput:
 
     The following permissions are available:
 
-    * `*` - everything is permitted
+    * ``*`` - everything is permitted
     * ``read`` - read operations are permitted
     * ``create`` - create operations are permitted
     * ``update`` - update operations are permitted
     * ``delete`` - delete operations are permitted
-    * ``execute`` - execute operations are permitted (used for operations that
+    * ``execute`` - execute operations are permitted (used for operations that \
         do not fall in the above categories)
 
     The number and type of permissions and resources may change over time and
@@ -585,15 +585,17 @@ class CreateRBACPolicyInput:
     `/nPodGroup/{npod_group_uuid}/nPod/{npod_uuid}` with varying length. For
     example:
 
-    - `/nPodGroup/*` scopes the policy to all nPod groups in the organization
-    - `/nPodGroup/{npod_group_uuid}/nPod/*` scopes the policy to a specific nPod
-        group in the organization and all nPods in this group.
-    - `/nPodGroup/{npod_group_uuid}/nPod/{npod_uuid}` scopes the policy to a
-        specific nPod.
+    - `/nPodGroup/*`:
+        scopes the policy to all nPod groups in the organization
+    - `/nPodGroup/{npod_group_uuid}/nPod/*`:
+        scopes the policy to a specific nPod group in the organization and all
+        nPods in this group.
+    - `/nPodGroup/{npod_group_uuid}/nPod/{npod_uuid}`:
+        scopes the policy to a specific nPod.
 
     User groups are not added and removed from a policy through this API, but
-    through the ``users`` API. Use ``create_user_group``, ``update_user_group`` for
-    adding and removing user groups to RBAC policies and similarly
+    through the ``users`` API. Use ``create_user_group``, ``update_user_group``
+    for adding and removing user groups to RBAC policies and similarly
     ``create_user`` and ``update_user``.
     """
 
@@ -666,15 +668,17 @@ class UpdateRBACPolicyInput:
     `/nPodGroup/{npod_group_uuid}/nPod/{npod_uuid}` with varying length. For
     example:
 
-    - `/nPodGroup/*` scopes the policy to all nPod groups in the organization
-    - `/nPodGroup/{npod_group_uuid}/nPod/*` scopes the policy to a specific nPod
-        group in the organization and all nPods in this group.
-    - `/nPodGroup/{npod_group_uuid}/nPod/{npod_uuid}` scopes the policy to a
-        specific nPod.
+    - `/nPodGroup/*`:
+        scopes the policy to all nPod groups in the organization
+    - `/nPodGroup/{npod_group_uuid}/nPod/*`:
+        scopes the policy to a specific nPod group in the organization and all
+        nPods in this group.
+    - `/nPodGroup/{npod_group_uuid}/nPod/{npod_uuid}`:
+        scopes the policy to a specific nPod.
 
     User groups are not added and removed from a policy through this API, but
-    through the ``users`` API. Use ``create_user_group``, ``update_user_group`` for
-    adding and removing user groups to RBAC policies and similarly
+    through the ``users`` API. Use ``create_user_group``, ``update_user_group``
+    for adding and removing user groups to RBAC policies and similarly
     ``create_user`` and ``update_user``.
     """
 

@@ -1633,6 +1633,7 @@ class NPodsMixin(NebMixin):
         delivery_response = token_response.deliver_token()
 
         # wait for recipe completion
+        # TODO: Nebulon ON now returns a different response
         recipe_uuid = delivery_response["recipe_uuid_to_wait_on"]
         npod_uuid = delivery_response["npod_uuid_to_wait_on"]
 

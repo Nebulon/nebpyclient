@@ -24,8 +24,10 @@ copyright = '2020, Nebulon, Inc.'
 author = 'Tobias Flitsch'
 
 # The version and full version including alpha/beta/rc tags
-version = "1.0"
-release = '1.0rc1'
+with open(os.path.join(source_dir, "nebpyclient/VERSION"), "r") as fh:
+    version_parts = fh.read().strip().split(".")
+    version = version_parts[0] + "." + version_parts[1]
+    release = ".".join(version_parts)
 
 # -- General configuration ---------------------------------------------------
 
@@ -52,19 +54,18 @@ exclude_patterns = [
 # The suffix of source filenames.
 source_suffix = '.rst'
 
-# The name of the Pygments (syntax highlighting) style to use.
-pygments_style = 'xcode'
-
 # The master toctree document.
 master_doc = 'index'
 
 # -- Options for autodoc -----------------------------------------------------
 
-autodoc_default_options = {}
+autodoc_default_options = {
+    'autodoc_typehints': 'description'
+}
 
 # -- Options for HTML output -------------------------------------------------
 
-# The theme to use for HTML and HTML Help pages.  See the documentation for
+# The theme to use for HTML and HTML Help pages. See the documentation for
 # a list of builtin themes.
 #
 html_theme = 'default'
@@ -77,25 +78,13 @@ html_static_path = ['_static']
 # Output file base name for HTML help builder.
 htmlhelp_basename = 'NebPyClientDoc'
 
-# -- Options for LaTeX output ------------------------------------------------
 
-latex_engine = 'xelatex'
-latex_elements = {
-    'fontpkg': r'''
-\setmainfont{Open Sans}
-\setsansfont{Open Sans}
-'''
-}
-latex_show_urls = 'footnote'
+def clean_method(app, what, name, obj, options, signature, return_annotation):
+    if what == 'method':
+        tmp = signature.replace("<class '", "").replace("'>", "")
+        return tmp, return_annotation
+    return signature, return_annotation
 
-# Grouping the document tree into LaTeX files. List of tuples
-# (source start file, target name, title, author, documentclass [howto/manual]).
-latex_documents = [
-    (
-        'index',
-        'NebPyClient.tex',
-        'Nebulon Python SDK documentation',
-        'Nebulon',
-        'manual'
-    ),
-]
+
+def setup(app):
+    app.connect('autodoc-process-signature', clean_method)

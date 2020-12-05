@@ -1,0 +1,50 @@
+name: build-sphinx
+
+env:
+  GITHUB_ACTOR: tflitsch
+  GITHUB_REPOSITORY: nebulon/nebpyclient
+  GITHUB_TOKEN: ${{ secrets.TF_TOKEN }}
+
+on:
+  push:
+    branches: [ master ]
+
+jobs:
+  build_sphinx_job:
+    runs-on: ubuntu-latest
+    container: debian:buster-slim
+
+    steps:
+      - name: Install prerequisites
+        run: |
+          set -x
+          apt-get update
+          apt-get install -y git rsync python3-sphinx
+        shell: bash
+
+      - name: Clone repository
+        run: git clone "https://token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" .
+        shell: bash
+
+      - name: Clean and build Sphinx
+        run: |
+          make clean
+          make html
+        shell: bash
+
+      - name: Update GitHub Pages
+        run: |
+          git config --global user.name "${GITHUB_ACTOR}"
+          git config --global user.email "${GITHUB_ACTOR}@users.noreply.github.com"
+          DOCROOT=`mktemp -d`
+          rsync -av "build/html/" "${DOCROOT}"
+          pushd "${DOCROOT}"
+          git init
+          git remote add deploy "https://token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git checkout -b gh-pages
+          touch .nojekyll
+          git add .
+          git commit -am "Updating docs for commit ${GITHUB_SHA}"
+          git push deploy gh-pages --force
+          popd
+        shell: bash

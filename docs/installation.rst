@@ -2,7 +2,7 @@ Installation Guide
 ==================
 
 The Nebulon Python SDK client is available through the Python Package Index
-with the name ``nebpyclient``.
+with the name nebpyclient.
 
 The source code is available on github.com and can be installed from source.
 

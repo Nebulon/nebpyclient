@@ -4,8 +4,8 @@ API Glossary
 .. toctree::
    :maxdepth: 2
 
-Nebulon Python SDK Client
--------------------------
+Nebulon Python Client
+---------------------
 
 .. automodule:: nebpyclient
 
