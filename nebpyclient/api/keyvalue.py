@@ -283,7 +283,7 @@ class KeyValueList:
 
     @property
     def items(self) -> [KeyValue]:
-        """List of datacenters in the pagination list"""
+        """List of key-value objects in the pagination list"""
         return self.__items
 
     @property

@@ -23,6 +23,9 @@ SPHINXDST   = build
 
 .PHONY: pip clean html publish
 
+help:
+	@echo "make [html|pip|publish|clean]"
+
 html: clean
 	$(SPHINXBUILD) -b html "$(SPHINXSRC)" "$(SPHINXDST)/html" $(SPHINXOPTS)
 

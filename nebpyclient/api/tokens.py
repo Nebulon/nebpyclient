@@ -95,7 +95,7 @@ class TokenResponse:
         self.__data_target_ips = read_value(
             "dataTargetIPs", response, str, False)
         self.__must_send_target_dns = read_value(
-            "mustSendTargetDNS", response, MustSendTargetDNS, True)
+            "mustSendTargetDNS", response, MustSendTargetDNS, False)
         self.__issues = read_value(
             "issues", response, Issues, False)
 
@@ -182,24 +182,26 @@ class TokenResponse:
         """
 
         # first to must_send_target_dns - need to send to all of them
-        for cur in self.must_send_target_dns:
+        if self.must_send_target_dns is not None:
 
-            # first send the token to the control port
-            if self._issue_one_token(cur.control_port_dns):
-                continue
+            for cur in self.must_send_target_dns:
 
-            # if this failed, send the token to the data ports
-            delivery_success = False
+                # first send the token to the control port
+                if self._issue_one_token(cur.control_port_dns):
+                    continue
 
-            for dp in cur.data_port_dns:
-                if self._issue_one_token(dp):
-                    delivery_success = True
-                    break
+                # if this failed, send the token to the data ports
+                delivery_success = False
 
-            if not delivery_success:
-                raise Exception("Unable to deliver token to mandatory SPUs")
+                for dp in cur.data_port_dns:
+                    if self._issue_one_token(dp):
+                        delivery_success = True
+                        break
 
-        # second, send the token to the remaining SPUs
+                if not delivery_success:
+                    raise Exception("Unable to deliver token to mandatory SPUs")
+
+        # second, send the token to one of the remaining SPUs
         ips = self.target_ips
         if self.data_target_ips is not None:
             ips = ips + self.data_target_ips

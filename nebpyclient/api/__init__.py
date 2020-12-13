@@ -17,7 +17,7 @@ from .datacenters import *
 from .etickets import *
 from .hosts import *
 from .keyvalue import *
-from .labs import *
+from .rooms import *
 from .luns import *
 from .npodgroups import *
 from .npods import *

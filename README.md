@@ -4,13 +4,6 @@ This is an API client for Nebulon ON for Python 3 and allows working with
 Nebulon nPods just like with the Nebulon ON web user interface but in a 
 scriptable form.
 
-## Contents
-
-| Path | Description |
-| :--- | :---------- |
-| `nebulonapi/` | Main module |
-| `docs/` | Documentation for the SDK |
-
 ## Installation
 The Nebulon Python SDK client is available through the Python Package Index
 with the name nebpyclient, but can also be installed from source.

@@ -923,7 +923,7 @@ class DatacentersMixin(NebMixin):
             self,
             uuid: str,
             cascade: bool = False
-    ):
+    ) -> bool:
         """Allows deletion of an existing datacenter object
 
         The deletion of a datacenter is only possible if the datacenter has

@@ -322,7 +322,7 @@ class AuditLogList:
 
     @property
     def items(self) -> [AuditLogEntry]:
-        """List of alerts in the pagination list"""
+        """List of audit log entries in the pagination list"""
         return self.__items
 
     @property

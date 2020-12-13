@@ -43,7 +43,7 @@ Community
 
 To learn what other #nebNerds are doing with the Nebulon Python SDK client,
 to share an implementation or contribute code, or to interact with other
-#nebNerds, visit the `Nebulon Community Slack <https://slack.nebulon.cm/>`_.
+#nebNerds, visit the `Nebulon Community Slack <https://slack.nebulon.com/>`_.
 
 
 Changelog

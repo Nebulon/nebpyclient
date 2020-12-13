@@ -451,7 +451,7 @@ class SupportCaseContact:
             self,
             response: dict
     ):
-        """Constructs a new support case comment object
+        """Constructs a new support case contact object
 
         This constructor expects a dict() object from the nebulon ON API. It
         will check the returned data against the currently implemented schema
@@ -732,6 +732,11 @@ class SupportCase:
     def resource_id(self) -> str:
         """Unique identifier of the associated resource for the support case"""
         return self.__resource_id
+
+    @property
+    def alert_id(self) -> str:
+        """Unique identifier of an associated alert"""
+        return self.__alert_id
 
     @property
     def spu_serial(self) -> str:

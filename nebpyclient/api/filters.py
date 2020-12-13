@@ -115,7 +115,7 @@ class StringFilter:
 
     @property
     def and_filter(self):
-        """Allows concatenation with another string filer with a logical AND"""
+        """Allows concatenation with another string filter with a logical AND"""
         return self.__and
 
     @property
@@ -231,7 +231,7 @@ class IntFilter:
 
     @property
     def and_filter(self):
-        """Allows concatenation with another int filer with a logical AND"""
+        """Allows concatenation with another int filter with a logical AND"""
         return self.__and
 
     @property
@@ -307,12 +307,12 @@ class UuidFilter:
 
     @property
     def and_filter(self):
-        """Allows concatenation with another UUID filer with a logical AND"""
+        """Allows concatenation with another UUID filter with a logical AND"""
         return self.__and
 
     @property
     def or_filter(self):
-        """Allows concatenation with another UUID filer with a logical OR"""
+        """Allows concatenation with another UUID filter with a logical OR"""
         return self.__or
 
     @property

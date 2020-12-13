@@ -48,6 +48,9 @@ class NebPackageType(NebEnum):
     Patch = "Patch"
     """A patch package that resolves a specific issue with nebOS"""
 
+    Recovery = "Recovery"
+    """A package that is used for recovery purposes"""
+
 
 class PackageInfo:
     """A nebulon update package
