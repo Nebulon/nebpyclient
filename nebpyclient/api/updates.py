@@ -386,7 +386,6 @@ class UpdateStateSpu:
         return [
             "updateID",
             "SPUSerial",
-            "spuSerial{serial}",
             "packageName",
             "downloadProgressPct",
             "waitingForSPUSerial",
@@ -618,7 +617,7 @@ class UpdatesMixin(NebMixin):
 
         # make the request
         response = self._query(
-            name="spuCustomDiagnostics",
+            name="updateState",
             params=parameters,
             fields=UpdateStateSpu.fields()
         )
