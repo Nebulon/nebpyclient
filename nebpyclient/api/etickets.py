@@ -535,8 +535,6 @@ class SupportCaseAttachment:
         """
         self.__file_name = read_value(
             "fileName", response, str, True)
-        self.__file_link = read_value(
-            "fileLink", response, str, True)
         self.__upload_time = read_value(
             "uploadTime", response, datetime, True)
         self.__file_size_bytes = read_value(
@@ -548,11 +546,6 @@ class SupportCaseAttachment:
     def file_name(self) -> str:
         """The name of the uploaded file"""
         return self.__file_name
-
-    @property
-    def file_link(self) -> str:
-        """A link to the file where it is uploaded"""
-        return self.__file_link
 
     @property
     def upload_time(self) -> datetime:
@@ -573,7 +566,6 @@ class SupportCaseAttachment:
     def fields():
         return [
             "fileName",
-            "fileLink",
             "uploadTime",
             "fileSizeBytes",
             "uniqueID",

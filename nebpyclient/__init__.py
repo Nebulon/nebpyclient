@@ -56,7 +56,9 @@ class NebPyClient(
             self,
             username: str,
             password: str,
-            verbose: bool = False):
+            verbose: bool = False,
+            client_name: str = None,
+            client_version: str = None):
         """Constructs Nebulon Python client instance to interact with Nebulon ON
 
         :param username: nebulon ON username
@@ -67,16 +69,27 @@ class NebPyClient(
             information to the console when interacting with nebulon ON. By
             default this option is turned off.
         :type verbose: bool, optional
+        :param client_name: Allows setting the client application name which is
+            used by the audit log as the client. Default value is `nebpyclient`.
+        :type client_name: str
+        :param client_version: Allows setting the client application version
+            which is used by the audit log as the client. Default value is
+            derived from the nebpyclient version information.
 
         :raises GraphQLError: An error with the GraphQL endpoint.
         :raises Exception: When the login failed
         """
 
-        GraphQLClient.__init__(self, verbose=verbose)
+        GraphQLClient.__init__(
+            self,
+            verbose=verbose,
+            client_name=client_name,
+            client_version=client_version,
+        )
 
         login_result = self.login(
             username,
-            password
+            password,
         )
 
         if not login_result.success:

@@ -236,13 +236,19 @@ class GraphQLClient:
 
     def __init__(
             self,
-            verbose: bool = False
+            verbose: bool = False,
+            client_name: str = None,
+            client_version: str = None,
     ):
         """Constructs a new GraphQL client
 
         :param verbose: If set to ``True`` debug information is printed to the
             console
         :type verbose: bool, optional
+        :param client_name: Allows specifying a custom application name for auditing
+        :type client_name: str, optional
+        :param client_version: Allows specifying a custom application version for auditing
+        :type client_version: str, optional
         """
 
         # initialize a reusable session
@@ -252,14 +258,22 @@ class GraphQLClient:
         client_system = platform.system()
         client_release = platform.release()
 
-        dir_name = os.path.dirname(__file__)
-        filename = os.path.join(dir_name, '../VERSION')
+        if client_name is None:
+            client_name = "nebpyclient"
 
-        with open(filename, "r") as fh:
-            client_version = fh.read().strip()
+        if client_version is None:
+            try:
+                dir_name = os.path.dirname(__file__)
+                filename = os.path.join(dir_name, '../VERSION')
+
+                with open(filename, "r") as fh:
+                    client_version = fh.read().strip()
+
+            except OSError:
+                client_version="unknown"
 
         self.session.headers.update({
-            "Nebulon-Client-App": f"nebpyclient/{client_version}",
+            "Nebulon-Client-App": f"{client_name}/{client_version}",
             "Nebulon-Client-Platform": f"{client_system}/{client_release}"
         })
 
