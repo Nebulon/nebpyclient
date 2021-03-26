@@ -1,0 +1,65 @@
+pre { line-height: 125%; margin: 0; }
+td.linenos pre { color: #000000; background-color: #f0f0f0; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #000000; background-color: #f0f0f0; padding-left: 5px; padding-right: 5px; }
+td.linenos pre.special { color: #000000; background-color: #ffffc0; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #000000; background-color: #ffffc0; padding-left: 5px; padding-right: 5px; }
+.highlight .hll { background-color: #ffc; }
+.highlight { background: #eeffcc; }
+.highlight .c { color: #8EB233; }
+.highlight .k { color: #5682DC; }
+.highlight .o { color: #555; }
+.highlight .cm { color: #8EB233; }
+.highlight .cp { color: #008085; }
+.highlight .c1 { color: #8EB233; }
+.highlight .cs { color: #8EB233; }
+.highlight .gd { background-color: #fcc; border: 1px solid #c00; }
+.highlight .ge { font-style: italic; }
+.highlight .gr { color: #f00; }
+.highlight .gh { color: #030; }
+.highlight .gi { background-color: #cfc; border: 1px solid #0c0; }
+.highlight .go { color: #aaa; }
+.highlight .gp { color: #009; }
+.highlight .gu { color: #030; }
+.highlight .gt { color: #9c6; }
+.highlight .kc { color: #5682DC; }
+.highlight .kd { color: #5682DC; }
+.highlight .kn { color: #5682DC; }
+.highlight .kp { color: #5682DC; }
+.highlight .kr { color: #5682DC; }
+.highlight .kt { color: #078; }
+.highlight .m { color: #CF623E; }
+.highlight .s { color: #d73038; }
+.highlight .na { color: #006ee0; }
+.highlight .nb { color: #366; }
+.highlight .nc { color: #168174; }
+.highlight .no { color: #360; }
+.highlight .nd { color: #6b62de; }
+.highlight .ni { color: #8EB233; }
+.highlight .ne { color: #c00; }
+.highlight .nf { color: #b715f4; }
+.highlight .nl { color: #6b62de; }
+.highlight .nn { color: #5682DC; }
+.highlight .nt { color: #2f6f9f; }
+.highlight .nv { color: #033; }
+.highlight .ow { color: #000; }
+.highlight .w { color: #bbb; }
+.highlight .mf { color: #CF623E; }
+.highlight .mh { color: #CF623E; }
+.highlight .mi { color: #CF623E; }
+.highlight .mo { color: #CF623E; }
+.highlight .sb { color: #CF623E; }
+.highlight .sc { color: #CF623E; }
+.highlight .sd { font-style: italic; color: #CF623E; }
+.highlight .s2 { color: #CF623E; }
+.highlight .se { color: #CF623E; }
+.highlight .sh { color: #CF623E; }
+.highlight .si { color: #a00; }
+.highlight .sx { color: #CF623E; }
+.highlight .sr { color: #337e7e; }
+.highlight .s1 { color: #CF623E; }
+.highlight .ss { color: #fc3; }
+.highlight .bp { color: #366; }
+.highlight .vc { color: #033; }
+.highlight .vg { color: #033; }
+.highlight .vi { color: #033; }
+.highlight .il { color: #CF623E; }
