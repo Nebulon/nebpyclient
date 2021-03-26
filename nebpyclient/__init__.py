@@ -71,13 +71,14 @@ class NebPyClient(
         :type verbose: bool, optional
         :param client_name: Allows setting the client application name which is
             used by the audit log as the client. Default value is `nebpyclient`.
-        :type client_name: str
+        :type client_name: str, optional
         :param client_version: Allows setting the client application version
             which is used by the audit log as the client. Default value is
             derived from the nebpyclient version information.
+        :type client_version: str, optional
 
         :raises GraphQLError: An error with the GraphQL endpoint.
-        :raises Exception: When the login failed
+        :raises Exception: When the login failed.
         """
 
         GraphQLClient.__init__(

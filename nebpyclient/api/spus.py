@@ -1308,6 +1308,79 @@ class SpuMixin(NebMixin):
         token_response = TokenResponse(response)
         token_response.deliver_token()
 
+    def shutdown_spu(
+            self,
+            spu_serial: str
+    ):
+        """Allows shutting down a services processing unit (SPU) 
+
+        This method is used during planned SPU replacement where the SPU needs
+        to be shut down so that it no longer serves IO to the host. Only use
+        this method when instructed by customer support.
+
+        :param spu_serial: The serial number of the SPU to shut down
+        :type spu_serial: str
+
+        :raises GraphQLError: An error with the GraphQL endpoint.
+        :raises Exception: An error when delivering a token to the SPU
+        """
+
+        # setup query parameters
+        parameters = dict()
+        parameters["spuSerial"] = GraphQLParam(
+            spu_serial,
+            "String",
+            True
+        )
+
+        # make the request
+        response = self._mutation(
+            name="shutdownSPU",
+            params=parameters,
+            fields=TokenResponse.fields()
+        )
+
+        # convert to object
+        token_response = TokenResponse(response)
+        token_response.deliver_token()
+
+    def set_ntp_servers(
+            self,
+            ntp_servers_input: SetNTPServersInput
+    ):
+        """Allows configuring the NTP server for an SPU or nPod
+
+        All services processing units us a default NTP server. In some
+        situations customers may use their own NTP servers for their datacenter
+        infrastructure. This mutation allows them to configure the NTP servers
+        for their SPUs or nPod.
+
+        :param ntp_servers_input: The NTP Server configuration to use
+        :type ntp_servers_input: SetNTPServersInput
+
+        :raises GraphQLError: An error with the GraphQL endpoint.
+        :raises Exception: An error when delivering a token to the SPU
+        """
+
+        # setup query parameters
+        parameters = dict()
+        parameters["input"] = GraphQLParam(
+            ntp_servers_input,
+            "SetNTPServersInput",
+            True
+        )
+
+        # make the request
+        response = self._mutation(
+            name="setNTPServers",
+            params=parameters,
+            fields=TokenResponse.fields()
+        )
+
+        # convert to object
+        token_response = TokenResponse(response)
+        token_response.deliver_token()
+
     def secure_erase_spu(
             self,
             spu_serial: str

@@ -100,7 +100,7 @@ class TokenResponse:
             "issues", response, Issues, False)
 
     @property
-    def token(self):
+    def token(self) -> str:
         """Token that needs to be delivered to on-premises SPUs"""
         return self.__token
 

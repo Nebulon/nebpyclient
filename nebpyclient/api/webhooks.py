@@ -567,17 +567,17 @@ class TestWebHookInput:
         self.__update = update
 
     @property
-    def uuid(self):
+    def uuid(self) -> str:
         """The unique identifier of the webhook to be tested"""
         return self.__uuid
 
     @property
-    def create(self):
+    def create(self) -> CreateWebHookInput:
         """A definition for a new webhook to be tested"""
         return self.__create
 
     @property
-    def update(self):
+    def update(self) -> UpdateWebHookInput:
         """A definition for the updates for a webhook to be tested"""
         return self.__update
 
@@ -830,7 +830,7 @@ class WebHookList:
             "filteredCount", response, int, True)
 
     @property
-    def items(self) -> list:
+    def items(self) -> [WebHook]:
         """List of webhooks in the pagination list"""
         return self.__items
 
