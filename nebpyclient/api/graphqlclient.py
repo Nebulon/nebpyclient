@@ -428,7 +428,12 @@ class GraphQLClient:
             obj = obj.value
 
         if isinstance(obj, dict):
-            return {i: cls._convert_dict(v) for i, v in obj.items()}
+            result = dict()
+            for key, value in obj.items():
+                processed_value = cls._convert_dict(value)
+                if processed_value is not None:
+                    result[key] = processed_value
+            return result
 
         if isinstance(obj, list):
             return [cls._convert_dict(v) for v in obj]

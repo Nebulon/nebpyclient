@@ -1,10 +1,11 @@
 # Python API for Nebulon
 
 This is an API client for Nebulon ON for Python 3 and allows working with
-Nebulon nPods just like with the Nebulon ON web user interface but in a 
+Nebulon nPods just like with the Nebulon ON web user interface but in a
 scriptable form.
 
 ## Installation
+
 The Nebulon Python SDK client is available through the Python Package Index
 with the name nebpyclient, but can also be installed from source.
 
@@ -37,13 +38,12 @@ cd docs/
 make html
 ```
 
-
 ## Using the API
 
 To use this API, instantiate a `NebPyClient` object with username and password.
-You can then use its methods to query state, and if a nPod is reachable from 
-where the script is being run modify the system. A simple script to display 
-the names of all of the pods in your organization along with a count of 
+You can then use its methods to query state, and if a nPod is reachable from
+where the script is being run modify the system. A simple script to display
+the names of all of the pods in your organization along with a count of
 the volumes in them would be:
 
 ```python
@@ -56,12 +56,12 @@ for npod in npod_list.items:
     print(f"nPod {npod.name} has {npod.volume_count} volumes")
 ```
 
-An example to create a 2 TiB volume called `volume name` on an existing nPod 
+An example to create a 2 TiB volume called `volume name` on an existing nPod
 with the name `NPod Name` would be:
 
 ```python
 from nebpyclient import NebPyClient
-from nebpyclient.api import NPodFilter, StringFilter
+from nebpyclient import NPodFilter, StringFilter
 
 client = NebPyClient("username", "password")
 
@@ -90,11 +90,10 @@ client.create_volume(
 )
 ```
 
-
-Full documentation on the API is available in the `docs` directory. 
-Some functions have comments that describe functions and methods and are 
+Full documentation on the API is available in the `docs` directory.
+Some functions have comments that describe functions and methods and are
 visible in modern Python IDEs.
 
-Please review the 
-[current version of the documentation](https://nebulon.github.io/nebpyclient/index.html) 
+Please review the
+[current version of the documentation](https://nebulon.github.io/nebpyclient/index.html)
 for more details.

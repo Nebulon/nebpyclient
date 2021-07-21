@@ -24,6 +24,7 @@ __all__ = [
     "VolumeSort",
     "VolumeFilter",
     "CreateVolumeInput",
+    "UpdateVolumeInput",
     "Volume",
     "VolumeList",
     "VolumeMixin"
@@ -366,6 +367,34 @@ class CreateVolumeInput:
         result["ownerSPUSerial"] = self.owner_spu_serial
         result["backupSPUSerial"] = self.backup_spu_serial
         result["force"] = self.force
+        return result
+
+
+class UpdateVolumeInput:
+    """An input object to update an existing volume"""
+
+    def __init__(
+            self,
+            name: str = None,
+    ):
+        """Constructs a new input object to update an existing volume.
+
+        :param name: The new name for the volume
+        :type name: str
+        """
+
+        self.__name = name
+
+    @property
+    def name(self) -> str:
+        """The new name for the volume"""
+        return self.__name
+
+
+    @property
+    def as_dict(self):
+        result = dict()
+        result["name"] = self.name
         return result
 
 
@@ -804,3 +833,43 @@ class VolumeMixin(NebMixin):
                 retry_count -= 1
 
         raise Exception("volume deletion failed")
+
+    def update_volume(
+            self,
+            uuid: str,
+            update_input: UpdateVolumeInput
+    ):
+        """Allows modification of an existing volume
+
+        :param uuid: The unique identifier of the volume or snapshot to modify
+        :type uuid: str
+        :param update_input: The parameters to modify for the volume
+        :type name: UpdateVolumeInput
+
+        :raises GraphQLError: An error with the GraphQL endpoint.
+        :raises Exception: An error when delivering a token to the SPU
+        """
+
+        # setup query parameters
+        parameters = dict()
+        parameters["uuid"] = GraphQLParam(
+            uuid,
+            "UUID",
+            True
+        )
+        parameters["input"] = GraphQLParam(
+            update_input,
+            "UpdateVolumeInput",
+            True
+        )
+
+        # make the request
+        response = self._mutation(
+            name="updateVolume",
+            params=parameters,
+            fields=TokenResponse.fields()
+        )
+
+        # convert to object and deliver token
+        token_response = TokenResponse(response)
+        token_response.deliver_token()

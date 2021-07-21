@@ -454,7 +454,7 @@ class VSphereCredentialsMixin(NebMixin):
 
         # make the request
         response = self._mutation(
-            name="upsertVsphereCreds",
+            name="deleteVsphereCreds",
             params=parameters,
             fields=TokenResponse.fields()
         )
