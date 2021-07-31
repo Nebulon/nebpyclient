@@ -1,5 +1,5 @@
 #
-# Copyright 2020 Nebulon, Inc.
+# Copyright 2021 Nebulon, Inc.
 # All Rights Reserved.
 #
 # DISCLAIMER: THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND,
@@ -14,7 +14,7 @@
 from datetime import datetime
 from .graphqlclient import NebMixin, GraphQLParam
 from .common import PageInput, read_value
-from .filters import UuidFilter
+from .filters import UUIDFilter
 from .tokens import TokenResponse
 
 __all__ = [
@@ -37,7 +37,7 @@ class VsphereCredentialsFilter:
 
     def __init__(
             self,
-            npod_uuid: UuidFilter = None,
+            npod_uuid: UUIDFilter = None,
             and_filter=None,
             or_filter=None,
     ):
@@ -48,7 +48,7 @@ class VsphereCredentialsFilter:
         options to concatenate multiple filters.
 
         :param npod_uuid: Filter based on nPod unique identifiers
-        :type npod_uuid: UuidFilter
+        :type npod_uuid: UUIDFilter
         :param and_filter: Concatenate another filter with a logical AND
         :type and_filter: VsphereCredentialsFilter
         :param or_filter: Concatenate another filter with a logical OR
@@ -59,7 +59,7 @@ class VsphereCredentialsFilter:
         self.__or = or_filter
 
     @property
-    def npod_uuid(self) -> UuidFilter:
+    def npod_uuid(self) -> UUIDFilter:
         """Filter for nPod unique identifier"""
         return self.__npod_uuid
 
@@ -95,6 +95,7 @@ class UpsertVsphereCredentialsInput:
             username: str,
             password: str,
             url: str,
+            enable_vmhost_affinity: bool = False,
     ):
         """Constructs a new vSphere credentials object
 
@@ -107,23 +108,20 @@ class UpsertVsphereCredentialsInput:
             address. If the default HTTPS port (443) is used, then the
             port specification is not required.
         :type url: str
+        :param enable_vmhost_affinity: If provided and set to ``True`` the
+            VMware vSphere integration will configure VM affinity rules to
+            ensure that Virtual Machines are running on the host where
+            the VM's datastore is local.
+        :type enable_vmhost_affinity: bool, optional
 
         :raises GraphQLError: An error when calling the nebulon ON API
             ValueError: An error when mandatory arguments are not specified
         """
 
-        if username is None or len(username) == 0:
-            raise ValueError("username must be specified")
-
-        if password is None or len(password) == 0:
-            raise ValueError("password must be specified")
-
-        if url is None or len(url) <= 7:
-            raise ValueError(f"url argument is not in the correct format")
-
         self.__username = username
         self.__password = password
         self.__url = url
+        self.__enable_vmhost_affinity = enable_vmhost_affinity
 
     @property
     def username(self) -> str:
@@ -141,11 +139,17 @@ class UpsertVsphereCredentialsInput:
         return self.__url
 
     @property
+    def enable_vmhost_affinity(self) -> bool:
+        """Enable automatic VM to Host affinity rule creation"""
+        return self.__enable_vmhost_affinity
+
+    @property
     def as_dict(self):
         result = dict()
         result["username"] = self.username
         result["password"] = self.password
         result["url"] = self.url
+        result["enableVmhostAffinity"] = self.enable_vmhost_affinity
         return result
 
 
@@ -164,7 +168,7 @@ class VsphereCredentials:
     ):
         """Constructs a new vCenter Credential object
 
-        This constructor expects a dict() object from the nebulon ON API. It
+        This constructor expects a ``dict`` object from the nebulon ON API. It
         will check the returned data against the currently implemented schema
         of the SDK.
 
@@ -192,6 +196,8 @@ class VsphereCredentials:
             "status", response, str, True)
         self.__error = read_value(
             "error", response, str, True)
+        self.__enable_vmhost_affinity = read_value(
+            "enableVmhostAffinity", response, bool, True)
 
     @property
     def npod_uuid(self) -> str:
@@ -238,6 +244,11 @@ class VsphereCredentials:
         """Error message associated with the vCenter integration"""
         return self.__error
 
+    @property
+    def enable_vmhost_affinity(self) -> bool:
+        """Automatic VM to Host affinity rule creation"""
+        return self.__enable_vmhost_affinity
+
     @staticmethod
     def fields():
         return [
@@ -250,14 +261,15 @@ class VsphereCredentials:
             "stateUpdated",
             "status",
             "error",
+            "enableVmhostAffinity",
         ]
 
 
 class VsphereCredentialsList:
-    """Paginated vCenter Credential information object
+    """Paginated vCenter Credential information objects
 
     Contains a list of vCenter Credential objects and information for
-    pagination. By default a single page includes a maximum of `100` items
+    pagination. By default a single page includes a maximum of ``100`` items
     unless specified otherwise in the paginated query.
     """
 
@@ -267,12 +279,12 @@ class VsphereCredentialsList:
     ):
         """Constructs a new vCenter Credential list object
 
-        This constructor expects a dict() object from the nebulon ON API. It
+        This constructor expects a ``dict`` object from the nebulon ON API. It
         will check the returned data against the currently implemented schema
         of the SDK.
 
         Consumers should always check for the property ``more`` as per default
-        the server only populates `100` items.
+        the server only populates ``100`` items.
 
         :param response: The JSON response from the server
         :type response: dict
@@ -327,20 +339,19 @@ class VSphereCredentialsMixin(NebMixin):
     ) -> VsphereCredentialsList:
         """Retrieves a list of vCenter credentials
 
-        Args:
-            page: PageInput = None
-                The requested page from the server. This is an optional
-                argument and if omitted the server will default to returning
-                the first page with a maximum of `100` items.
-            credential_filter: VsphereCredentialsFilter = None
-                A filter object to filter the vSphere credentials on the server.
-                If omitted, the server will return all objects as a paginated
-                response.
+        :param page: The requested page from the server. This is an optional
+            argument and if omitted the server will default to returning the
+            first page with a maximum of ``100`` items.
+        :type page: PageInput, optional
+        :param credential_filter: A filter object to filter the vSphere
+            credentials on the server. If omitted, the server will return
+            all objects as a paginated response.
+        :type credential_filter: VsphereCredentialsFilter, optional
 
-        Returns:
-            A paginated list of vCenter credential entries. For security
-            the passwords are not stored in nebulon ON and therefore not
-            retrievable via the API even though they are set.
+        :returns SpuList: A paginated list of vCenter credential entries.
+            For security reasons, the passwords are not stored in nebulon
+            ON and therefore not retrievable via the API even though they
+            are set.
 
         Raises:
             GraphQLError: An error with the GraphQL endpoint.
@@ -372,31 +383,20 @@ class VSphereCredentialsMixin(NebMixin):
     def set_vsphere_credentials(
             self,
             npod_uuid: str,
-            username: str,
-            password: str,
-            url: str,
+            credentials_input: UpsertVsphereCredentialsInput
     ) -> bool:
         """Sets vCenter credentials for the provided nPod
 
-        Args:
-            npod_uuid: str
-                Unique identifier of the nPod
-            username: str
-                Username for vCenter login
-            password: str
-                Password for vCenter login
-            url: str
-                The URL for the vCenter server API in the form of
-                https://<fqdn>:<port>, where ``fqdn`` can be a DNS name or an IP
-                address. If the default HTTPS port (443) is used, then the
-                port specification is not required.
+        :param npod_uuid: Unique identifier of the nPod
+        :type npod_uuid: str
+        :param credentials_input: An input object describing the
+            credentials to configure for the provided nPod
+        :type credentials_input: UpsertVsphereCredentialsInput
 
-        Returns:
-            A boolean that indicates if the request was successfully sent
-            to the services processing unit.
+        :returns bool: If the request was successful
 
-        Raises:
-            GraphQLError: An error with the GraphQL endpoint.
+        :raises GraphQLError: An error with the GraphQL endpoint.
+        :raises Exception: An error when delivering a token to the SPU
         """
 
         # setup query parameters
@@ -407,18 +407,14 @@ class VSphereCredentialsMixin(NebMixin):
             True
         )
         parameters["input"] = GraphQLParam(
-            UpsertVsphereCredentialsInput(
-                username=username,
-                password=password,
-                url=url,
-            ),
+            credentials_input,
             "UpsertVsphereCredsInput",
             True
         )
 
         # make the request
         response = self._mutation(
-            name="upsertVsphereCreds",
+            name="upsertVsphereCredsV2",
             params=parameters,
             fields=TokenResponse.fields()
         )
@@ -432,16 +428,17 @@ class VSphereCredentialsMixin(NebMixin):
     ) -> bool:
         """Removes the vCenter credentials from the provided nPod
 
-        Args:
-            npod_uuid: str
-                Unique identifier of the nPod
+        :param npod_uuid: Unique identifier of the nPod
+        :type npod_uuid: str
 
         Returns:
             A boolean that indicates if the request was successfully sent
             to the services processing unit.
 
-        Raises:
-            GraphQLError: An error with the GraphQL endpoint.
+        :returns bool: If the request was successful
+
+        :raises GraphQLError: An error with the GraphQL endpoint.
+        :raises Exception: An error when delivering a token to the SPU
         """
 
         # setup query parameters
@@ -454,7 +451,7 @@ class VSphereCredentialsMixin(NebMixin):
 
         # make the request
         response = self._mutation(
-            name="deleteVsphereCreds",
+            name="deleteVsphereCredsV2",
             params=parameters,
             fields=TokenResponse.fields()
         )

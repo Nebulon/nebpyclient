@@ -20,7 +20,7 @@ sys.path.insert(0, source_dir)
 # -- Project information -----------------------------------------------------
 
 project = 'Nebulon Python SDK'
-copyright = '2020, Nebulon, Inc.'
+copyright = '2021, Nebulon, Inc.'
 author = 'Tobias Flitsch'
 
 # The version and full version including alpha/beta/rc tags

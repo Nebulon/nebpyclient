@@ -1,5 +1,5 @@
 #
-# Copyright 2020 Nebulon, Inc.
+# Copyright 2021 Nebulon, Inc.
 # All Rights Reserved.
 #
 # DISCLAIMER: THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND,
@@ -86,7 +86,7 @@ class NebMixin:
     def _mutation(
             self,
             name: str,
-            params: dict,
+            params: dict = None,
             fields: [str] = None
     ) -> any:
         """Run a GraphQL mutation.
@@ -109,7 +109,7 @@ class NebMixin:
     def _query(
             self,
             name: str,
-            params: dict,
+            params: dict = None,
             fields: [str] = None
     ) -> any:
         """Run a GraphQL query.
@@ -137,7 +137,8 @@ class GraphQLParam:
             self,
             value: any,
             type_name: str,
-            mandatory: bool = False
+            mandatory: bool = False,
+            no_log: bool = False,
     ):
         """Constructs a new GraphQL parameter
 
@@ -147,14 +148,18 @@ class GraphQLParam:
             the GraphQL server should interpret the value
         :type type_name: str
         :param mandatory: Indicates if the provided value is considered
-            mandatory in the GraphQL schema. It will append a `!` to the
+            mandatory in the GraphQL schema. It will append a ``!`` to the
             type name.
         :type mandatory: bool, optional
+        :param no_log: Indicates if the value of this parameter should not
+            be printed in cleartext in the logs
+        :type no_log: bool, optional
         """
 
         self.__value = value
         self.__type_name = type_name
         self.__mandatory = mandatory
+        self.__no_log = no_log
 
     @property
     def value(self) -> any:
@@ -177,6 +182,11 @@ class GraphQLParam:
     def mandatory(self) -> bool:
         """Indicates if the provided GraphQL parameter is mandatory"""
         return self.__mandatory
+
+    @property
+    def no_log(self) -> bool:
+        """Indicates if the value of this parameter should not be printed in logs"""
+        return self.__no_log
 
 
 class GraphQLError(Exception):
@@ -228,7 +238,7 @@ class GraphQLError(Exception):
         if self.request is not None:
             result += f" {self.request}"
 
-        return result
+        return result.strip()
 
 
 class GraphQLClient:
@@ -237,6 +247,7 @@ class GraphQLClient:
     def __init__(
             self,
             verbose: bool = False,
+            log_file: str = None,
             client_name: str = None,
             client_version: str = None,
     ):
@@ -245,6 +256,8 @@ class GraphQLClient:
         :param verbose: If set to ``True`` debug information is printed to the
             console
         :type verbose: bool, optional
+        :param log_file: If provided, the SDK will print log information to the file instead of the console.
+        :type log_file: str
         :param client_name: Allows specifying a custom application name for auditing
         :type client_name: str, optional
         :param client_version: Allows specifying a custom application version for auditing
@@ -279,6 +292,7 @@ class GraphQLClient:
 
         self.uri = _API_SERVER_URI
         self.verbose = verbose
+        self.log_file = log_file
 
     def _print(
             self,
@@ -301,6 +315,11 @@ class GraphQLClient:
         :type background: ConsoleColor, optional
         """
         if verbose and not self.verbose:
+            return
+
+        if self.log_file is not None:
+            with open(self.log_file, "a") as fh:
+                fh.write(f"{text}\n")
             return
 
         color_str = _color_str(
@@ -334,7 +353,7 @@ class GraphQLClient:
         """
         uri = _API_SERVER_URI
 
-        dict_vars = self._convert_dict(variables)
+        dict_vars = self._convert_dict(obj=variables)
 
         # DEBUG INFORMATION
         if self.verbose:
@@ -343,8 +362,9 @@ class GraphQLClient:
             self._print("DATA")
             self._print(method, color=ConsoleColor.Yellow)
             self._print("VARIABLES")
+            dict_vars_log_save = self._convert_dict(obj=variables, save=True)
             self._print(
-                json.dumps(dict_vars, indent=2),
+                json.dumps(dict_vars_log_save, indent=2),
                 color=ConsoleColor.Yellow
             )
             start = datetime.now()
@@ -413,7 +433,9 @@ class GraphQLClient:
     @classmethod
     def _convert_dict(
             cls,
-            obj: any
+            obj: any,
+            save: bool = False,
+            no_log: bool = False,
     ) -> any:
         """Converts types to JSON compliant types
 
@@ -425,18 +447,20 @@ class GraphQLClient:
             return None
 
         if isinstance(obj, GraphQLParam):
+            if save and obj.no_log:
+                no_log = True
             obj = obj.value
 
         if isinstance(obj, dict):
             result = dict()
             for key, value in obj.items():
-                processed_value = cls._convert_dict(value)
+                processed_value = cls._convert_dict(value, save, "password" in key)
                 if processed_value is not None:
                     result[key] = processed_value
             return result
 
         if isinstance(obj, list):
-            return [cls._convert_dict(v) for v in obj]
+            return [cls._convert_dict(v, save) for v in obj]
 
         if isinstance(obj, datetime):
             return obj.strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -446,7 +470,10 @@ class GraphQLClient:
 
         if hasattr(obj, "as_dict"):
             dict_value = getattr(obj, "as_dict", None)
-            return cls._convert_dict(dict_value)
+            return cls._convert_dict(dict_value, save)
+
+        if save and no_log:
+            return "******"
 
         return obj
 
@@ -475,11 +502,11 @@ class GraphQLClient:
                 # check if it is a file upload (Upload)
                 if obj.type_name == "Upload":
                     files[path] = obj.value
-                    return GraphQLParam(None, obj.type_name, obj.mandatory)
+                    return GraphQLParam(None, obj.type_name, obj.mandatory, obj.no_log)
 
                 # otherwise process the parameter value
                 tmp = _extract_files_recursively(path, obj.value)
-                return GraphQLParam(tmp, obj.type_name, obj.mandatory)
+                return GraphQLParam(tmp, obj.type_name, obj.mandatory, obj.no_log)
 
             # every other case
             return obj
@@ -493,17 +520,17 @@ class GraphQLClient:
     def _mutation(
             self,
             name: str,
-            params: dict,
-            fields: [str]
+            params: dict = None,
+            fields: [str] = None
     ) -> any:
         """Run a GraphQL mutation.
 
         :param name: The name of the mutation
         :type name: str
         :param params: Parameters for the GraphQL mutation
-        :type params: dict
+        :type params: dict, optional
         :param fields: Fields to query the result for
-        :type fields: [str]
+        :type fields: [str], optional
 
         :returns any: The response from the server
 
@@ -524,17 +551,17 @@ class GraphQLClient:
     def _query(
             self,
             name: str,
-            params: dict,
-            fields: [str]
+            params: dict = None,
+            fields: [str] = None
     ) -> any:
         """Run a GraphQL query.
 
         :param name: The name of the query
         :type name: str
         :param params: Parameters for the GraphQL query
-        :type params: dict
+        :type params: dict, optional
         :param fields: Fields to query the result for
-        :type fields: [str]
+        :type fields: [str], optional
 
         :returns any: The response from the server
 
@@ -561,7 +588,7 @@ class GraphQLClient:
     ) -> str:
         """Create a str formatted GraphQL method from the provided parameters
 
-        :param method: Method type oof the GraphQL query. This can either be
+        :param method: Method type of the GraphQL query. This can either be
             a mutation or a query.
         :type method: str
         :param name: Name of the GraphQL query (query or mutation) to execute

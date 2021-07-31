@@ -1,5 +1,5 @@
 #
-# Copyright 2020 Nebulon, Inc.
+# Copyright 2021 Nebulon, Inc.
 # All Rights Reserved.
 #
 # DISCLAIMER: THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND,
@@ -15,15 +15,16 @@ from time import sleep
 from .graphqlclient import GraphQLParam, NebMixin
 from datetime import datetime
 from .common import NebEnum, PageInput, read_value
-from .filters import StringFilter, UuidFilter, IntFilter
+from .filters import StringFilter, UUIDFilter, IntFilter
 from .sorting import SortDirection
-from .tokens import TokenResponse, PodTokenResponse
+from .tokens import TokenResponse
 
 __all__ = [
     "VolumeSyncState",
     "VolumeSort",
     "VolumeFilter",
     "CreateVolumeInput",
+    "DeleteVolumeInput",
     "UpdateVolumeInput",
     "Volume",
     "VolumeList",
@@ -136,16 +137,20 @@ class VolumeFilter:
 
     def __init__(
             self,
-            uuid: UuidFilter = None,
+            uuid: UUIDFilter = None,
             name: StringFilter = None,
             wwn: StringFilter = None,
             size_bytes: IntFilter = None,
-            npod_uuid: UuidFilter = None,
+            npod_uuid: UUIDFilter = None,
             snapshots_only: bool = None,
             base_only: bool = None,
             creation_time: IntFilter = None,
             expiration_time: IntFilter = None,
-            parent_uuid: UuidFilter = None,
+            parent_uuid: UUIDFilter = None,
+            parent_name: StringFilter = None,
+            natural_owner_spu_serial: StringFilter = None,
+            natural_backup_spu_serial: StringFilter = None,
+            sync_state: VolumeSyncState = None,
             and_filter=None,
             or_filter=None
     ):
@@ -165,7 +170,7 @@ class VolumeFilter:
         :param size_bytes: Filter based on volume size
         :type size_bytes: IntFilter, optional
         :param npod_uuid: Filter based on nPod unique identifier
-        :type npod_uuid: UuidFilter, optional
+        :type npod_uuid: UUIDFilter, optional
         :param snapshots_only: Filter for only snapshots
         :type snapshots_only: bool, optional
         :param base_only: Filter for only base volumes
@@ -175,7 +180,17 @@ class VolumeFilter:
         :param expiration_time: Filter based on snapshot expiration time
         :type expiration_time: IntFilter, optional
         :param parent_uuid: Filter based on volume parent uuid
-        :type parent_uuid: UuidFilter, optional
+        :type parent_uuid: UUIDFilter, optional
+        :param parent_name: Filter based on volume parent name
+        :type parent_name: StringFilter, optional
+        :param natural_owner_spu_serial: Filter based on volume's natural
+            owner SPU serial number
+        :type natural_owner_spu_serial: StringFilter, optional
+        :param natural_backup_spu_serial: Filter based on volume's natural
+            backup SPU serial number
+        :type natural_backup_spu_serial: StringFilter, optional
+        :param sync_state: Filter based on volume's sync state
+        :type sync_state: VolumeSyncState, optional
         :param and_filter: Concatenate another filter with a logical AND
         :type and_filter: VolumeFilter, optional
         :param or_filter: Concatenate another filter with a logical OR
@@ -192,11 +207,15 @@ class VolumeFilter:
         self.__creation_time = creation_time
         self.__expiration_time = expiration_time
         self.__parent_uuid = parent_uuid
+        self.__parent_name = parent_name
+        self.__natural_owner_spu_serial = natural_owner_spu_serial
+        self.__natural_backup_spu_serial = natural_backup_spu_serial
+        self.__sync_state = sync_state
         self.__and = and_filter
         self.__or = or_filter
 
     @property
-    def uuid(self) -> UuidFilter:
+    def uuid(self) -> UUIDFilter:
         """Filter based on volume unique identifier"""
         return self.__uuid
 
@@ -216,7 +235,7 @@ class VolumeFilter:
         return self.__size_bytes
 
     @property
-    def npod_uuid(self) -> UuidFilter:
+    def npod_uuid(self) -> UUIDFilter:
         """Filter based on nPod unique identifier"""
         return self.__npod_uuid
 
@@ -241,9 +260,29 @@ class VolumeFilter:
         return self.__expiration_time
 
     @property
-    def parent_uuid(self) -> UuidFilter:
+    def parent_uuid(self) -> UUIDFilter:
         """Filter based on volume parent uuid"""
         return self.__parent_uuid
+
+    @property
+    def parent_name(self) -> StringFilter:
+        """Filter based on volume parent name"""
+        return self.__parent_name
+
+    @property
+    def natural_owner_spu_serial(self) -> StringFilter:
+        """Filter based on volume natural owner SPU serial number"""
+        return self.__natural_owner_spu_serial
+
+    @property
+    def natural_backup_spu_serial(self) -> StringFilter:
+        """Filter based on volume natural backup SPU serial number"""
+        return self.__natural_backup_spu_serial
+
+    @property
+    def sync_state(self) -> VolumeSyncState:
+        """Filter based on volume synchronization status"""
+        return self.__sync_state
 
     @property
     def and_filter(self):
@@ -268,8 +307,69 @@ class VolumeFilter:
         result["creationTime"] = self.creation_time
         result["expirationTime"] = self.expiration_time
         result["parentUUID"] = self.parent_uuid
+        result["parentName"] = self.parent_name
+        result["naturalOwnerSPUSerial"] = self.natural_owner_spu_serial
+        result["naturalBackupSPUSerial"] = self.natural_backup_spu_serial
+        result["syncState"] = self.sync_state
         result["and"] = self.and_filter
         result["or"] = self.or_filter
+        return result
+
+
+class DeleteVolumeInput:
+    """An input object to delete a volume"""
+
+    def __init__(
+            self,
+            cascade: bool = None
+    ):
+        """Constructs a new input object to delete a new volume.
+
+        :param cascade: If specified and set to ``True`` all snapshots
+            that are associated with the volume will be deleted with
+            the deletion of this volume. Otherwise, only the volume
+            will be deleted
+        :type cascade: bool, optional
+        """
+
+        self.__cascade = cascade
+
+    @property
+    def cascade(self) -> bool:
+        """Forces the creation of the volume and ignores any warnings"""
+        return self.__cascade
+
+    @property
+    def as_dict(self):
+        result = dict()
+        result["cascade"] = self.cascade
+        return result
+
+
+class UpdateVolumeInput:
+    """An input object to update a volume"""
+
+    def __init__(
+            self,
+            name: str = None
+    ):
+        """Constructs a new input object to update a new volume.
+
+        :param name: The new name for the volume
+        :type name: str, optional
+        """
+
+        self.__name = name
+
+    @property
+    def name(self) -> str:
+        """The new name for the volume"""
+        return self.__name
+
+    @property
+    def as_dict(self):
+        result = dict()
+        result["name"] = self.name
         return result
 
 
@@ -280,7 +380,7 @@ class CreateVolumeInput:
             self,
             name: str,
             size_bytes: int,
-            npod_uuid: str = None,
+            npod_uuid: str,
             mirrored: bool = None,
             owner_spu_serial: str = None,
             backup_spu_serial: str = None,
@@ -288,16 +388,16 @@ class CreateVolumeInput:
     ):
         """Constructs a new input object to create a new volume.
 
-        One of ``npod_uuid`` or ``owner_spu_serial`` must be provided. If
-        ``owner_spu_serial`` or ``backup_spu_serial`` are not provided, nebulon
-        ON will automatically determine where the volume will be provisioned.
+        If ``owner_spu_serial`` or ``backup_spu_serial`` are not provided,
+        nebulon ON will automatically determine where the volume will be
+        provisioned.
 
         :param name: The name for the volume
         :type name: str
         :param size_bytes: The size of the volume in bytes
         :type size_bytes: int
         :param npod_uuid: The uuid of the nPod in which to create the volume
-        :type npod_uuid: str, optional
+        :type npod_uuid: str
         :param mirrored: Indicates if the volume shall be created with high
             availability. By default the volume will be created without
             mirroring
@@ -361,7 +461,7 @@ class CreateVolumeInput:
     def as_dict(self):
         result = dict()
         result["name"] = self.name
-        result["podUUID"] = self.npod_uuid
+        result["nPodUUID"] = self.npod_uuid
         result["sizeBytes"] = self.size_bytes
         result["mirrored"] = self.mirrored
         result["ownerSPUSerial"] = self.owner_spu_serial
@@ -407,7 +507,7 @@ class Volume:
     ):
         """Constructs a volume object
 
-        This constructor expects a dict() object from the nebulon ON API. It
+        This constructor expects a ``dict`` object from the nebulon ON API. It
         will check the returned data against the currently implemented schema
         of the SDK.
 
@@ -435,8 +535,6 @@ class Volume:
             "readOnlySnapshot", response, bool, True)
         self.__snapshot_parent_uuid = read_value(
             "snapshotParent.uuid", response, str, False)
-        self.__snapshot_uuids = read_value(
-            "snapshots.uuid", response, str, False)
         self.__natural_owner_host_uuid = read_value(
             "naturalOwnerHost.uuid", response, str, False)
         self.__natural_backup_host_uuid = read_value(
@@ -453,8 +551,6 @@ class Volume:
             "syncState", response, VolumeSyncState, False)
         self.__boot = read_value(
             "boot", response, bool, True)
-        self.__lun_uuids = read_value(
-            "luns.uuid", response, str, False)
 
     @property
     def uuid(self) -> str:
@@ -502,11 +598,6 @@ class Volume:
         return self.__snapshot_parent_uuid
 
     @property
-    def snapshot_uuids(self) -> [str]:
-        """List of unique identifiers or snapshots from this volume"""
-        return self.__snapshot_uuids
-
-    @property
     def natural_owner_host_uuid(self) -> str:
         """The uuid of the host / server that is the natural owner"""
         return self.__natural_owner_host_uuid
@@ -546,11 +637,6 @@ class Volume:
         """Indicates if the volume is a boot volume"""
         return self.__boot
 
-    @property
-    def lun_uuids(self) -> [str]:
-        """List of uuids for all LUNs created for the volume"""
-        return self.__lun_uuids
-
     @staticmethod
     def fields():
         return [
@@ -563,7 +649,6 @@ class Volume:
             "expirationTime",
             "readOnlySnapshot",
             "snapshotParent{uuid}",
-            "snapshots{uuid}",
             "naturalOwnerHost{uuid}",
             "naturalBackupHost{uuid}",
             "currentOwnerHost{uuid}",
@@ -572,15 +657,14 @@ class Volume:
             "accessibleByHosts{uuid}",
             "syncState",
             "boot",
-            "luns{uuid}",
         ]
 
 
 class VolumeList:
-    """Paginated volume list
+    """Paginated list of volumes
 
     Contains a list of volume objects and information for
-    pagination. By default a single page includes a maximum of `100` items
+    pagination. By default a single page includes a maximum of ``100`` items
     unless specified otherwise in the paginated query.
 
     Consumers should always check for the property ``more`` as per default
@@ -593,7 +677,7 @@ class VolumeList:
     ):
         """Constructs a new volume list object
 
-        This constructor expects a dict() object from the nebulon ON API. It
+        This constructor expects a ``dict`` object from the nebulon ON API. It
         will check the returned data against the currently implemented schema
         of the SDK.
 
@@ -655,7 +739,7 @@ class VolumeMixin(NebMixin):
 
         :param page: The requested page from the server. This is an optional
             argument and if omitted the server will default to returning the
-            first page with a maximum of `100` items.
+            first page with a maximum of ``100`` items.
         :type page: PageInput, optional
         :param volume_filter: A filter object to filter the volumes on the
             server. If omitted, the server will return all objects as a
@@ -692,41 +776,14 @@ class VolumeMixin(NebMixin):
 
     def create_volume(
             self,
-            name: str,
-            size_bytes: int,
-            npod_uuid: str = None,
-            mirrored: bool = None,
-            owner_spu_serial: str = None,
-            backup_spu_serial: str = None,
-            force: bool = None,
-            ignore_warnings: bool = False
+            create_volume_input: CreateVolumeInput
     ) -> Volume:
         """Allows creation of a new volume
 
-        One of ``npod_uuid`` or ``owner_spu_serial`` must be provided. If
-        ``owner_spu_serial`` or ``backup_spu_serial`` are not provided, nebulon
-        ON will automatically determine where the volume will be provisioned.
 
-        :param name: The name for the volume
-        :type name: str
-        :param size_bytes: The size of the volume in bytes
-        :type size_bytes: int
-        :param npod_uuid: The uuid of the nPod in which to create the volume
-        :type npod_uuid: str, optional
-        :param mirrored: Indicates if the volume shall be created with high
-            availability. By default the volume will be created without
-            mirroring
-        :type mirrored: bool, optional
-        :param owner_spu_serial: Create the volume on the SPU indicated with
-            this serial number
-        :type owner_spu_serial: str, optional
-        :param backup_spu_serial: If the volume is mirrored, create the
-            backup mirror on the specified SPU
-        :type backup_spu_serial: str, optional
-        :param force: Forces the creation of the volume even if there is no
-            available capacity available. By default the volume creation will
-            fail if there is not enough capacity available
-        :type force: bool, optional
+        :param create_volume_input: An input object that describes the
+            volume to be created
+        :type create_volume_input: CreateVolumeInput
 
         :returns Volume: The created volume
 
@@ -737,114 +794,35 @@ class VolumeMixin(NebMixin):
         # setup query parameters
         parameters = dict()
         parameters["input"] = GraphQLParam(
-            CreateVolumeInput(
-                name=name,
-                size_bytes=size_bytes,
-                npod_uuid=npod_uuid,
-                mirrored=mirrored,
-                owner_spu_serial=owner_spu_serial,
-                backup_spu_serial=backup_spu_serial,
-                force=force,
-            ),
+            create_volume_input,
             "CreateVolumeInput",
             True
         )
 
         # make the request
         response = self._mutation(
-            name="createVolume",
-            params=parameters,
-            fields=PodTokenResponse.fields()
-        )
-
-        # convert to object and deliver token
-        pod_token_response = PodTokenResponse(response)
-        if pod_token_response.issues is not None:
-            pod_token_response.issues.assert_no_issues(ignore_warnings)
-        delivery_result = pod_token_response.token.deliver_token()
-
-        # wait for the volume if delivery result is True (success)
-        if delivery_result:
-            retry_count = 5
-            while retry_count >= 0:
-                sleep(2)
-                vol_list = self.get_volumes(
-                    volume_filter=VolumeFilter(
-                        uuid=UuidFilter(
-                            equals=pod_token_response.token.wait_on
-                        )
-                    )
-                )
-                if vol_list.filtered_count == 1:
-                    return vol_list.items[0]
-
-                retry_count -= 1
-
-        raise Exception("volume creation failed")
-
-    def delete_volume(
-            self,
-            uuid: str
-    ):
-        """Allows deletion of a volume
-
-        :param uuid: The unique identifier of the volume or snapshot to delete
-        :type uuid: str
-
-        :raises GraphQLError: An error with the GraphQL endpoint.
-        :raises Exception: An error when delivering a token to the SPU
-        :raises Exception: An error when the deletion failed
-        """
-
-        # setup query parameters
-        parameters = dict()
-        parameters["uuid"] = GraphQLParam(
-            uuid,
-            "UUID",
-            True
-        )
-
-        # make the request
-        response = self._mutation(
-            name="deleteVolume",
+            name="createVolumeV3",
             params=parameters,
             fields=TokenResponse.fields()
         )
 
         # convert to object and deliver token
         token_response = TokenResponse(response)
-        delivery_result = token_response.deliver_token()
+        token_response.deliver_token()
 
-        # wait for the volume if delivery result is True (success)
-        if delivery_result:
-            retry_count = 5
-            while retry_count >= 0:
-                sleep(2)
-                vol_list = self.get_volumes(
-                    volume_filter=VolumeFilter(
-                        uuid=UuidFilter(
-                            equals=token_response.wait_on
-                        )
-                    )
-                )
-                if vol_list.filtered_count == 0:
-                    return
-
-                retry_count -= 1
-
-        raise Exception("volume deletion failed")
-
-    def update_volume(
+    def delete_volume(
             self,
             uuid: str,
-            update_input: UpdateVolumeInput
+            cascade: bool = False
     ):
-        """Allows modification of an existing volume
+        """Allows deletion of a volume
 
-        :param uuid: The unique identifier of the volume or snapshot to modify
+        :param uuid: The unique identifier of the volume or snapshot to delete
         :type uuid: str
-        :param update_input: The parameters to modify for the volume
-        :type name: UpdateVolumeInput
+        :param cascade: If set to True all associated snapshots will be deleted
+            with the parent volume. If set to False, only this volume is
+            deleted
+        :type cascade: bool, optional
 
         :raises GraphQLError: An error with the GraphQL endpoint.
         :raises Exception: An error when delivering a token to the SPU
@@ -858,7 +836,50 @@ class VolumeMixin(NebMixin):
             True
         )
         parameters["input"] = GraphQLParam(
-            update_input,
+            DeleteVolumeInput(
+                cascade=cascade
+            ),
+            "DeleteVolumeInput",
+            True
+        )
+
+        # make the request
+        response = self._mutation(
+            name="deleteVolumeV3",
+            params=parameters,
+            fields=TokenResponse.fields()
+        )
+
+        # convert to object and deliver token
+        token_response = TokenResponse(response)
+        token_response.deliver_token()
+
+    def update_volume(
+            self,
+            uuid: str,
+            update_volume_input: UpdateVolumeInput
+    ):
+        """Allows deletion of a volume
+
+        :param uuid: The unique identifier of the volume or snapshot to delete
+        :type uuid: str
+        :param update_volume_input: An input object that describes the changes
+            to apply to the volume
+        :type update_volume_input: UpdateVolumeInput
+
+        :raises GraphQLError: An error with the GraphQL endpoint.
+        :raises Exception: An error when delivering a token to the SPU
+        """
+
+        # setup query parameters
+        parameters = dict()
+        parameters["uuid"] = GraphQLParam(
+            uuid,
+            "UUID",
+            True
+        )
+        parameters["input"] = GraphQLParam(
+            update_volume_input,
             "UpdateVolumeInput",
             True
         )

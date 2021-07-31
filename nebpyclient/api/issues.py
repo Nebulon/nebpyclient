@@ -1,5 +1,5 @@
 #
-# Copyright 2020 Nebulon, Inc.
+# Copyright 2021 Nebulon, Inc.
 # All Rights Reserved.
 #
 # DISCLAIMER: THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND,
@@ -29,7 +29,7 @@ class IssueInstance:
     ):
         """Constructs a new issue instance object
 
-        This constructor expects a dict() object from the nebulon ON API. It
+        This constructor expects a ``dict`` object from the nebulon ON API. It
         will check the returned data against the currently implemented schema
         of the SDK.
 
@@ -76,7 +76,7 @@ class Issues:
     ):
         """Constructs a new issues object
 
-        This constructor expects a dict() object from the nebulon ON API. It
+        This constructor expects a ``dict`` object from the nebulon ON API. It
         will check the returned data against the currently implemented schema
         of the SDK.
 
@@ -116,15 +116,18 @@ class Issues:
         Method checks if there are any warnings or errors present in the list
         of issues. If there are any issues of type error, an exception is
         raised. If there are any warnings and ``ignore_warnings`` is set to
-        ``False`` an exception is thrown, if set to ``True``, warnings are ignored.
+        ``False`` an exception is thrown, if set to ``True``, warnings are
+        ignored.
 
-        :param ignore_warnings: If set to ``True`` warnings are silently ignored.
-            By default warnings are not ignored
+        :param ignore_warnings: If set to ``True`` warnings are silently
+            ignored. By default warnings are not ignored.
         :type ignore_warnings: bool, optional
 
         :raises Exception: If there are errors or warnings (and warnings are
             not ignored)
         """
+
+        # TODO: Users should get the total list of errors and warnings.
 
         error_count = len(self.errors)
         if error_count > 0:

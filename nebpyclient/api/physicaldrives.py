@@ -1,5 +1,5 @@
 #
-# Copyright 2020 Nebulon, Inc.
+# Copyright 2021 Nebulon, Inc.
 # All Rights Reserved.
 #
 # DISCLAIMER: THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND,
@@ -12,8 +12,8 @@
 #
 
 from .graphqlclient import GraphQLParam, NebMixin
-from .common import PageInput, read_value
-from .filters import StringFilter, IntFilter, UuidFilter
+from .common import PageInput, NebEnum, read_value
+from .filters import StringFilter, IntFilter, UUIDFilter
 from .sorting import SortDirection
 from .tokens import TokenResponse
 
@@ -30,6 +30,28 @@ __all__ = [
     "PhysicalDriveUpdatesList",
     "PhysicalDriveMixin"
 ]
+
+
+class PhysicalDriveState(NebEnum):
+    """Defines the state of a physical drive"""
+
+    PDStateUnknown = "PDStateUnknown"
+    """The physical drive state is not known"""
+
+    PDStateNormal = "PDStateNormal"
+    """The physical drive is operating normally"""
+
+    PDStateFailed = "PDStateFailed"
+    """The physical drive has failed"""
+
+    PDStateMissing = "PDStateMissing"
+    """The physical drive is not visible to the services processing unit"""
+
+    PDStateVacant = "PDStateVacant"
+    """The physical drive does not contain any data"""
+
+    PDStateIncompatible = "PDStateIncompatible"
+    """The physical drive is incompatible with the services processing unit"""
 
 
 class PhysicalDriveSort:
@@ -60,7 +82,8 @@ class PhysicalDriveSort:
         :type model: SortDirection, optional
         :param vendor: Sort direction for the ``vendor`` property
         :type vendor: SortDirection, optional
-        :param interface_type: Sort direction for the ``interface_type`` property
+        :param interface_type: Sort direction for the ``interface_type``
+            property
         :type interface_type: SortDirection, optional
         """
 
@@ -193,6 +216,7 @@ class PhysicalDriveFilter:
             model: StringFilter,
             vendor: StringFilter,
             interface_type: StringFilter,
+            spu_serial: StringFilter,
             and_filter=None,
             or_filter=None
     ):
@@ -212,6 +236,8 @@ class PhysicalDriveFilter:
         :type vendor: StringFilter, optional
         :param interface_type: Filter based on physical drive interface
         :type interface_type: StringFilter, optional
+        :param spu_serial: Filter drives by the SPU they are attached to
+        :type spu_serial: StringFilter, optional
         :param and_filter: Concatenate another filter with a logical AND
         :type and_filter: DataCenterFilter, optional
         :param or_filter: Concatenate another filter with a logical OR
@@ -223,6 +249,7 @@ class PhysicalDriveFilter:
         self.__model = model
         self.__vendor = vendor
         self.__interface_type = interface_type
+        self.__spu_serial = spu_serial
         self.__and = and_filter
         self.__or = or_filter
 
@@ -252,6 +279,11 @@ class PhysicalDriveFilter:
         return self.__interface_type
 
     @property
+    def spu_serial(self) -> StringFilter:
+        """Filter based on the SPU the drives are attached to"""
+        return self.__spu_serial
+
+    @property
     def and_filter(self):
         """Allows concatenation of multiple filters via logical AND"""
         return self.__and
@@ -269,6 +301,7 @@ class PhysicalDriveFilter:
         result["model"] = self.model
         result["vendor"] = self.vendor
         result["interfaceType"] = self.interface_type
+        result["spuSerial"] = self.spu_serial
         result["and"] = self.and_filter
         result["or"] = self.or_filter
         return result
@@ -285,7 +318,7 @@ class PhysicalDriveUpdatesFilter:
 
     def __init__(
             self,
-            npod_uuid: UuidFilter,
+            npod_uuid: UUIDFilter,
             spu_serial: StringFilter,
             and_filter=None,
             or_filter=None
@@ -297,7 +330,7 @@ class PhysicalDriveUpdatesFilter:
         options to concatenate multiple filters.
 
         :param npod_uuid: Filter based on nPod unique identifier
-        :type npod_uuid: UuidFilter, optional
+        :type npod_uuid: UUIDFilter, optional
         :param spu_serial: Filter based on SPU serial number
         :type spu_serial: StringFilter, optional
         :param and_filter: Concatenate another filter with a logical AND
@@ -312,7 +345,7 @@ class PhysicalDriveUpdatesFilter:
         self.__or = or_filter
 
     @property
-    def npod_uuid(self) -> UuidFilter:
+    def npod_uuid(self) -> UUIDFilter:
         """Allows filtering based on nPod unique identifier"""
         return self.__npod_uuid
 
@@ -398,12 +431,22 @@ class UpdatePhysicalDriveFirmwareInput:
     ):
         """Constructs a new input object to update physical drive firmware
 
+        Either ``npod_uuid`` or ``spu_serial`` must be specified. If a nPod
+        is referenced, the firmware of all physical drives in the nPod are
+        updated. If a specific SPU is specified, only the drives attached to
+        the SPU are updated.
+
+        > [!IMPORTANT]
+        > Please read the end-user license agreement of the firmware release
+        > carefully before accepting. Drive firmware is not released by nebulon
+        > but drive vendors and are not covered by the nebulon EULA.
+
         :param accept_eula: Specify ``True`` if you accept the physical drive
-            end user license agreement. If not specified or set to ``False`` the
-            update will fail.
+            end user license agreement. If not specified or set to ``False``
+            the update will fail.
         :type accept_eula: bool
-        :param npod_uuid: The nPod unique identifier. Specify either ``npod_uuid``
-            or ``spu_serial``
+        :param npod_uuid: The nPod unique identifier. Specify either
+            ``npod_uuid`` or ``spu_serial``
         :type npod_uuid: str, optional
         :param spu_serial: The SPU serial number. Specify either ``npod_uuid``
             or ``spu_serial``.
@@ -435,7 +478,6 @@ class UpdatePhysicalDriveFirmwareInput:
         result["nPodUUID"] = self.npod_uuid
         result["spuSerial"] = self.spu_serial
         result["acceptEULA"] = self.accept_eula
-
         return result
 
 
@@ -452,14 +494,15 @@ class PhysicalDrive:
     ):
         """Constructs a new physical drive object
 
-        This constructor expects a dict() object from the nebulon ON API. It
+        This constructor expects a ``dict`` object from the nebulon ON API. It
         will check the returned data against the currently implemented schema
         of the SDK.
 
         :param response: The JSON response from the server
         :type response: dict
 
-        :raises ValueError: An error if illegal data is returned from the server
+        :raises ValueError: An error if illegal data is returned from
+            the server
         """
         self.__spu_serial = read_value(
             "spu.serial", response, str, False)
@@ -470,9 +513,7 @@ class PhysicalDrive:
         self.__position = read_value(
             "position", response, int, True)
         self.__state = read_value(
-            "state", response, int, True)
-        self.__state_display = read_value(
-            "stateDisplay", response, str, True)
+            "stateEnum", response, PhysicalDriveState, True)
         self.__unadmitted = read_value(
             "unadmitted", response, bool, True)
         self.__size_bytes = read_value(
@@ -487,6 +528,8 @@ class PhysicalDrive:
             "firmwareRevision", response, str, True)
         self.__interface_type = read_value(
             "interfaceType", response, str, True)
+        self.__update_failure = read_value(
+            "updateFailure", response, str, False)
 
     @property
     def spu_serial(self) -> str:
@@ -509,22 +552,9 @@ class PhysicalDrive:
         return self.__position
 
     @property
-    def state(self) -> int:
-        """The physical drive state.
-
-        Possible values are:
-        - 1: PdNormal : normal
-        - 2: PdFailed: failed, can’t handle IO
-        - 3: PdMissing: device is missing
-        - 4: PdVacant: data on device has been vacated
-        - 5: PdIncompatible: device is incompatible to other devices
-        """
+    def state(self) -> PhysicalDriveState:
+        """The physical drive state"""
         return self.__state
-
-    @property
-    def state_display(self) -> str:
-        """The physical drive state as a string"""
-        return self.__state_display
 
     @property
     def unadmitted(self) -> bool:
@@ -561,6 +591,11 @@ class PhysicalDrive:
         """The interface type of the physical drive"""
         return self.__interface_type
 
+    @property
+    def update_failure(self) -> str:
+        """Status information of a previous firmware update failure"""
+        return self.__update_failure
+
     @staticmethod
     def fields():
         return [
@@ -569,8 +604,7 @@ class PhysicalDrive:
             "mediaType",
             "id",
             "position",
-            "state",
-            "stateDisplay",
+            "stateEnum",
             "unadmitted",
             "sizeBytes",
             "vendor",
@@ -578,6 +612,7 @@ class PhysicalDrive:
             "serial",
             "firmwareRevision",
             "interfaceType",
+            "updateFailure",
         ]
 
 
@@ -585,7 +620,7 @@ class PhysicalDriveList:
     """Paginated physical drive list object
 
     Contains a list of datacenter objects and information for
-    pagination. By default a single page includes a maximum of `100` items
+    pagination. By default a single page includes a maximum of ``100`` items
     unless specified otherwise in the paginated query.
 
     Consumers should always check for the property ``more`` as per default
@@ -598,14 +633,15 @@ class PhysicalDriveList:
     ):
         """Constructs a new physical drive list object
 
-        This constructor expects a dict() object from the nebulon ON API. It
+        This constructor expects a ``dict`` object from the nebulon ON API. It
         will check the returned data against the currently implemented schema
         of the SDK.
 
         :param response: The JSON response from the server
         :type response: dict
 
-        :raises ValueError: An error if illegal data is returned from the server
+        :raises ValueError: An error if illegal data is returned from
+            the server
         """
         self.__items = read_value(
             "items", response, PhysicalDrive, False)
@@ -617,7 +653,7 @@ class PhysicalDriveList:
             "filteredCount", response, int, False)
 
     @property
-    def items(self) -> list:
+    def items(self) -> [PhysicalDrive]:
         """List of physical drive in the pagination list"""
         return self.__items
 
@@ -658,14 +694,15 @@ class PhysicalDriveUpdate:
     ):
         """Constructs a new physical drive update list object
 
-        This constructor expects a dict() object from the nebulon ON API. It
+        This constructor expects a ``dict`` object from the nebulon ON API. It
         will check the returned data against the currently implemented schema
         of the SDK.
 
         :param response: The JSON response from the server
         :type response: dict
 
-        :raises ValueError: An error if illegal data is returned from the server
+        :raises ValueError: An error if illegal data is returned from
+            the server
         """
         self.__npod_uuid = read_value(
             "nPod.uuid", response, str, False)
@@ -681,6 +718,8 @@ class PhysicalDriveUpdate:
             "vendor", response, str, True)
         self.__model = read_value(
             "model", response, str, True)
+        self.__eula_url = read_value(
+            "eulaURL", response, str, True)
 
     @property
     def npod_uuid(self) -> str:
@@ -717,6 +756,11 @@ class PhysicalDriveUpdate:
         """The model of the physical drive this update is relevant for"""
         return self.__model
 
+    @property
+    def eula_url(self) -> str:
+        """The URL to the end-user license agreement for the firmware"""
+        return self.__eula_url
+
     @staticmethod
     def fields():
         return [
@@ -727,6 +771,7 @@ class PhysicalDriveUpdate:
             "newFirmwareRev",
             "vendor",
             "model",
+            "eulaURL",
         ]
 
 
@@ -734,7 +779,7 @@ class PhysicalDriveUpdatesList:
     """Paginated physical drive update list object
 
     Contains a list of physical drive update objects and information for
-    pagination. By default a single page includes a maximum of `100` items
+    pagination. By default a single page includes a maximum of ``100`` items
     unless specified otherwise in the paginated query.
 
     Consumers should always check for the property ``more`` as per default
@@ -747,23 +792,24 @@ class PhysicalDriveUpdatesList:
     ):
         """Constructs a new drive update list object
 
-        This constructor expects a dict() object from the nebulon ON API. It
+        This constructor expects a ``dict`` object from the nebulon ON API. It
         will check the returned data against the currently implemented schema
         of the SDK.
 
         :param response: The JSON response from the server
         :type response: dict
 
-        :raises ValueError: An error if illegal data is returned from the server
+        :raises ValueError: An error if illegal data is returned from
+            the server
         """
         self.__items = read_value(
-            "items", response, PhysicalDriveUpdate, False)
+            "items", response, PhysicalDriveUpdate, True)
         self.__more = read_value(
-            "more", response, bool, False)
+            "more", response, bool, True)
         self.__total_count = read_value(
-            "totalCount", response, int, False)
+            "totalCount", response, int, True)
         self.__filtered_count = read_value(
-            "filteredCount", response, int, False)
+            "filteredCount", response, int, True)
 
     @property
     def items(self) -> [PhysicalDriveUpdate]:
@@ -808,15 +854,15 @@ class PhysicalDriveMixin(NebMixin):
 
         :param page: The requested page from the server. This is an optional
             argument and if omitted the server will default to returning the
-            first page with a maximum of `100` items.
+            first page with a maximum of ``100`` items.
         :type page: PageInput, optional
-        :param pd_filter: A filter object to filter the physical drives on the
-            server. If omitted, the server will return all objects as a
-            paginated response.
+        :param pd_filter: A filter object to filter the physical
+            drives on the server. If omitted, the server will return all
+            objects as a paginated response.
         :type pd_filter: PhysicalDriveFilter, optional
-        :param sort: A sort definition object to sort the physical drive objects
-            on supported properties. If omitted objects are returned in the
-            order as they were created in.
+        :param sort: A sort definition object to sort the physical drive
+            objects on supported properties. If omitted objects are returned
+            in the order as they were created in.
         :type sort: PhysicalDriveSort, optional
 
         :returns PhysicalDriveList: A paginated list of physical drives.
@@ -846,19 +892,19 @@ class PhysicalDriveMixin(NebMixin):
     def get_physical_drive_updates(
             self,
             page: PageInput = None,
-            pd_filter: PhysicalDriveUpdatesFilter = None,
+            pd_updates_filter: PhysicalDriveUpdatesFilter = None,
             sort: PhysicalDriveUpdatesSort = None
     ) -> PhysicalDriveUpdatesList:
         """Retrieves a list of physical drive update objects
 
         :param page: The requested page from the server. This is an optional
             argument and if omitted the server will default to returning the
-            first page with a maximum of `100` items.
+            first page with a maximum of ``100`` items.
         :type page: PageInput, optional
-        :param pd_filter: A filter object to filter the physical drive updates
-            on the server. If omitted, the server will return all objects as a
-            paginated response.
-        :type pd_filter: PhysicalDriveUpdatesFilter, optional
+        :param pd_updates_filter: A filter object to filter the
+            physical drive updates on the server. If omitted, the server will
+            return all objects as a paginated response.
+        :type pd_updates_filter: PhysicalDriveUpdatesFilter, optional
         :param sort: A sort definition object to sort the physical drive update
             objects on supported properties. If omitted objects are returned in
             the order as they were created in.
@@ -875,7 +921,7 @@ class PhysicalDriveMixin(NebMixin):
         parameters["page"] = GraphQLParam(
             page, "PageInput", False)
         parameters["filter"] = GraphQLParam(
-            pd_filter, "PhysicalDriveUpdatesFilter", False)
+            pd_updates_filter, "PhysicalDriveUpdatesFilter", False)
         parameters["sort"] = GraphQLParam(
             sort, "PhysicalDriveUpdatesSort", False)
 
@@ -891,16 +937,13 @@ class PhysicalDriveMixin(NebMixin):
 
     def locate_physical_drive(
             self,
-            wwn: str,
-            duration_seconds: int
+            locate_pd_input: LocatePhysicalDriveInput
     ):
         """Turn on the locate LED of a physical drive
 
-        :param wwn: The world-wide name of the physical drive
-        :type wwn: str
-        :param duration_seconds: The number of seconds after which the locate
-            LED will automatically be turned off again
-        :type duration_seconds: int
+        :param locate_pd_input: A parameter describing the target
+            physical drive and duration of locate.
+        :type locate_pd_input: LocatePhysicalDriveInput
 
         :raises GraphQLError: An error with the GraphQL endpoint.
         :raises Exception: When token delivery to the relevant SPU fails
@@ -909,10 +952,7 @@ class PhysicalDriveMixin(NebMixin):
         # setup query parameters
         parameters = dict()
         parameters["input"] = GraphQLParam(
-            LocatePhysicalDriveInput(
-                wwn=wwn,
-                duration_seconds=duration_seconds
-            ),
+            locate_pd_input,
             "LocatePhysicalDriveInput",
             True
         )
@@ -930,22 +970,13 @@ class PhysicalDriveMixin(NebMixin):
 
     def update_physical_drive_firmware(
             self,
-            accept_eula: bool,
-            npod_uuid: str = None,
-            spu_serial: str = None
+            update_pd_firmware_input: UpdatePhysicalDriveFirmwareInput
     ):
         """Update the firmware of physical drives
 
-        :param accept_eula: Specify ``True`` if you accept the physical drive
-            end user license agreement. If not specified or set to ``False`` the
-            update will fail.
-        :type accept_eula: bool
-        :param npod_uuid: The nPod unique identifier. Specify either ``npod_uuid``
-            or ``spu_serial``
-        :type npod_uuid: str, optional
-        :param spu_serial: The SPU serial number. Specify either ``npod_uuid``
-            or ``spu_serial``.
-        :type spu_serial: str, optional
+        :param update_pd_firmware_input: A parameter describing the details
+            of the update that identifies the physical drive targets
+        :type update_pd_firmware_input: UpdatePhysicalDriveFirmwareInput
 
         :raises GraphQLError: An error with the GraphQL endpoint.
         :raises Exception: When token delivery to the relevant SPU fails
@@ -954,11 +985,7 @@ class PhysicalDriveMixin(NebMixin):
         # setup query parameters
         parameters = dict()
         parameters["input"] = GraphQLParam(
-            UpdatePhysicalDriveFirmwareInput(
-                accept_eula=accept_eula,
-                npod_uuid=npod_uuid,
-                spu_serial=spu_serial
-            ),
+            update_pd_firmware_input,
             "UpdatePhysicalDriveFirmwareInput",
             True
         )

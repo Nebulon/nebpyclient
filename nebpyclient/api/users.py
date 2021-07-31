@@ -1,5 +1,5 @@
 #
-# Copyright 2020 Nebulon, Inc.
+# Copyright 2021 Nebulon, Inc.
 # All Rights Reserved.
 #
 # DISCLAIMER: THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND,
@@ -13,7 +13,7 @@
 
 from .graphqlclient import GraphQLParam, NebMixin
 from .common import read_value, NebEnum, DateFormat, PageInput
-from .filters import UuidFilter, StringFilter
+from .filters import UUIDFilter, StringFilter
 from .sorting import SortDirection
 
 __all__ = [
@@ -41,6 +41,16 @@ class SendNotificationType(NebEnum):
 
     Daily = "Daily"
     """The user will receive a daily digest of alerts over the last 24 hours"""
+
+
+class ChangePasswordReason(NebEnum):
+    """Defines the reason why a user must reset their password"""
+
+    FirstLogin = "FirstLogin"
+    """User must change their password because it's their first login"""
+
+    PasswordReset = "PasswordReset"
+    """User must change their password because it was reset"""
 
 
 class UserSort:
@@ -84,9 +94,10 @@ class UserFilter:
 
     def __init__(
             self,
-            uuid: UuidFilter = None,
+            uuid: UUIDFilter = None,
             name: StringFilter = None,
             email: StringFilter = None,
+            inactive: bool = None,
             and_filter=None,
             or_filter=None
     ):
@@ -97,11 +108,13 @@ class UserFilter:
         options to concatenate multiple filters.
 
         :param uuid: Filter based on user unique identifiers
-        :type uuid: UuidFilter, optional
+        :type uuid: UUIDFilter, optional
         :param name: Filter based on user name
         :type name: StringFilter, optional
         :param email: Filter based on user email
         :type email: StringFilter, optional
+        :param inactive: Filter for users that are marked as inactive
+        :type inactive: bool, optional
         :param and_filter: Concatenate another filter with a logical AND
         :type and_filter: DataCenterFilter, optional
         :param or_filter: Concatenate another filter with a logical OR
@@ -110,11 +123,12 @@ class UserFilter:
         self.__uuid = uuid
         self.__name = name
         self.__email = email
+        self.__inactive = inactive
         self.__and = and_filter
         self.__or = or_filter
 
     @property
-    def uuid(self) -> UuidFilter:
+    def uuid(self) -> UUIDFilter:
         """Filter based on users unique identifier"""
         return self.__uuid
 
@@ -127,6 +141,11 @@ class UserFilter:
     def email(self) -> StringFilter:
         """Filter based on user email address"""
         return self.__email
+
+    @property
+    def inactive(self) -> bool:
+        """Filter for users that are marked as inactive"""
+        return self.__inactive
 
     @property
     def and_filter(self):
@@ -144,6 +163,7 @@ class UserFilter:
         result["uuid"] = self.uuid
         result["name"] = self.name
         result["email"] = self.email
+        result["inactive"] = self.inactive
         result["and"] = self.and_filter
         result["or"] = self.or_filter
         return result
@@ -172,7 +192,9 @@ class UserPreferencesInput:
             wants to receive email notifications for alerts in nebulon ON. By
             default, no email notifications are sent.
         :type send_notification: SendNotificationType, optional
-        :param time_zone: Allows specifying the user's time zone.
+        :param time_zone: Allows specifying the user's time zone. The time zone
+            is used for localizing timestamps and other information in e.g.
+            email communication.
         :type time_zone: str, optional
         :param show_base_two: Allows specifying if the user wants capacity
             values displayed with base2 notation. By default base10 is used.
@@ -238,9 +260,9 @@ class UpdateUserInput:
     ):
         """Constructs a new input object to update properties of users
 
-        :param name: The name of the user
+        :param name: The new name of the user
         :type name: str, optional
-        :param password: The password of the user. Changing the user's password
+        :param password: The new password of the user. Changing the user's password
             through this API will cause the user to have his password changed
             at next login.
         :type password: str, optional
@@ -290,12 +312,12 @@ class UpdateUserInput:
 
     @property
     def name(self) -> str:
-        """The name of the user"""
+        """The new name of the user"""
         return self.__name
 
     @property
     def password(self) -> str:
-        """The password of the user"""
+        """The new password of the user"""
         return self.__password
 
     @property
@@ -310,7 +332,7 @@ class UpdateUserInput:
 
     @property
     def user_group_uuids(self) -> [str]:
-        """Unique identifiers of user groups the user is part of"""
+        """Unique identifiers of user groups the user shall be part of"""
         return self.__user_group_uuids
 
     @property
@@ -335,7 +357,7 @@ class UpdateUserInput:
 
     @property
     def inactive(self) -> bool:
-        """Indicates if the user is marked as inactive / disabled"""
+        """Indicates if the user shall be marked as inactive / disabled"""
         return self.__inactive
 
     @property
@@ -394,9 +416,8 @@ class CreateUserInput:
 
         :param name: The name of the user
         :type name: str
-        :param password: The password of the user. Changing the user's password
-            through this API will cause the user to have his password changed
-            at next login.
+        :param password: The password of the user. The users created through
+            this API will will have to change their password at next login.
         :type password: str
         :param email: The user's business email address
         :type email: str
@@ -413,7 +434,7 @@ class CreateUserInput:
         :param business_phone: The user's business phone number
         :type business_phone: str, optional
         :param inactive: Specifies if the user is inactive / disabled. Inactive
-            users are still in the database but can not log in to nebulon ON.
+            users are in the database but can not log in to nebulon ON.
         :type inactive: bool, optional
         :param policy_uuids: List of RBAC policies that shall be assigned to
             the user
@@ -536,7 +557,7 @@ class UserPreferences:
     ):
         """Constructs a new user preferences object
 
-        This constructor expects a dict() object from the nebulon ON API. It
+        This constructor expects a ``dict`` object from the nebulon ON API. It
         will check the returned data against the currently implemented schema
         of the SDK.
 
@@ -594,7 +615,7 @@ class User:
     ):
         """Constructs a new user object
 
-        This constructor expects a dict() object from the nebulon ON API. It
+        This constructor expects a ``dict`` object from the nebulon ON API. It
         will check the returned data against the currently implemented schema
         of the SDK.
 
@@ -624,14 +645,16 @@ class User:
             "inactive", response, bool, True)
         self.__group_uuids = read_value(
             "groups.uuid", response, str, False)
-        self.__support_contact_id = read_value(
-            "supportContactID", response, str, False)
-        self.__change_password = read_value(
-            "changePassword", response, bool, False)
         self.__preferences = read_value(
             "preferences", response, UserPreferences, False)
+        self.__support_contact_id = read_value(
+            "supportContactID", response, str, False)
         self.__policy_uuids = read_value(
             "policies.uuid", response, str, False)
+        self.__change_password = read_value(
+            "changePassword", response, bool, False)
+        self.__change_password_reason = read_value(
+            "changePasswordReason", response, ChangePasswordReason, False)
 
     @property
     def uuid(self) -> str:
@@ -694,6 +717,11 @@ class User:
         return self.__change_password
 
     @property
+    def change_password_reason(self) -> ChangePasswordReason:
+        """Indicates the reason why a user has to change their password"""
+        return self.__change_password_reason
+
+    @property
     def preferences(self) -> UserPreferences:
         """The user's personal preferences"""
         return self.__preferences
@@ -717,15 +745,18 @@ class User:
             "inactive",
             "groups{uuid}",
             "preferences{%s}" % (",".join(UserPreferences.fields())),
-            "policies{uuid}"
+            "supportContactID",
+            "policies{uuid}",
+            "changePassword",
+            "changePasswordReason"
         ]
 
 
 class UserList:
-    """Paginated user list
+    """Paginated list of users
 
     Contains a list of user objects and information for
-    pagination. By default a single page includes a maximum of `100` items
+    pagination. By default a single page includes a maximum of ``100`` items
     unless specified otherwise in the paginated query.
 
     Consumers should always check for the property ``more`` as per default
@@ -738,7 +769,7 @@ class UserList:
     ):
         """Constructs a new user list object
 
-        This constructor expects a dict() object from the nebulon ON API. It
+        This constructor expects a ``dict`` object from the nebulon ON API. It
         will check the returned data against the currently implemented schema
         of the SDK.
 
@@ -799,7 +830,7 @@ class UsersMixin(NebMixin):
 
         :param page: The requested page from the server. This is an optional
             argument and if omitted the server will default to returning the
-            first page with a maximum of `100` items.
+            first page with a maximum of ``100`` items.
         :type page: PageInput, optional
         :param user_filter: A filter object to filter the user objects on the
             server. If omitted, the server will return all objects as a
@@ -834,86 +865,15 @@ class UsersMixin(NebMixin):
         # convert to object
         return UserList(response)
 
-    def get_users_count(
-            self,
-            user_filter: UserFilter = None
-    ) -> int:
-        """Get the number of users that match the specified filter
-
-        :param user_filter: A filter object to filter the user objects on the
-            server. If omitted, the server will count all objects.
-        :type user_filter: UserFilter, optional
-
-        :returns int: The number of users matching the filter
-
-        :raises GraphQLError: An error with the GraphQL endpoint.
-        """
-
-        # setup query parameters
-        parameters = dict()
-        parameters["filter"] = GraphQLParam(
-            user_filter, "UserFilter", False)
-
-        # make the request
-        response = self._query(
-            name="getUsersCount",
-            params=parameters,
-            fields=None
-        )
-
-        # response is an int
-        return response
-
     def create_user(
             self,
-            name: str,
-            password: str,
-            email: str,
-            user_group_uuid: str,
-            first_name: str,
-            last_name: str,
-            note: str = None,
-            mobile_phone: str = None,
-            business_phone: str = None,
-            inactive: bool = None,
-            policy_uuids: [str] = None,
-            send_notification: SendNotificationType = None,
-            time_zone: str = None
+            create_user_input: CreateUserInput
     ) -> User:
         """Allows creating a new user in nebulon ON
 
-        :param name: The name of the user
-        :type name: str
-        :param password: The password of the user. Changing the user's password
-            through this API will cause the user to have his password changed
-            at next login.
-        :type password: str
-        :param email: The user's business email address
-        :type email: str
-        :param user_group_uuid: Unique identifier this user shall be part of.
-        :type user_group_uuid: str
-        :param first_name: The user's first name
-        :type first_name: str
-        :param last_name: The user's last name
-        :type last_name: str
-        :param note: An optional note for the user
-        :type note: str, optional
-        :param mobile_phone: The user's mobile phone number
-        :type mobile_phone: str, optional
-        :param business_phone: The user's business phone number
-        :type business_phone: str, optional
-        :param inactive: Specifies if the user is inactive / disabled. Inactive
-            users are still in the database but can not log in to nebulon ON.
-        :type inactive: bool, optional
-        :param policy_uuids: List of RBAC policies that shall be assigned to
-            the user
-        :type policy_uuids: [str], optional
-        :param send_notification:  Specifies if, and the rate at which the user
-            wants to receive email notifications for alerts in nebulon ON. By
-            default, no email notifications are sent.
-        :type send_notification: SendNotificationType, optional
-        :param time_zone: Allows specifying the user's time zone.
-        :type time_zone: str, optional
+        :param create_user_input: An input object that describes the new
+            user to create
+        :type create_user_input: CreateUserInput
 
         :returns User: The new user account
 
@@ -923,21 +883,7 @@ class UsersMixin(NebMixin):
         # setup query parameters
         parameters = dict()
         parameters["input"] = GraphQLParam(
-            CreateUserInput(
-                name=name,
-                password=password,
-                email=email,
-                user_group_uuid=user_group_uuid,
-                first_name=first_name,
-                last_name=last_name,
-                note=note,
-                mobile_phone=mobile_phone,
-                business_phone=business_phone,
-                inactive=inactive,
-                policy_uuids=policy_uuids,
-                send_notification=send_notification,
-                time_zone=time_zone
-            ),
+            create_user_input,
             "CreateUserInput",
             True
         )
@@ -955,58 +901,15 @@ class UsersMixin(NebMixin):
     def update_user(
             self,
             uuid: str,
-            name: str = None,
-            password: str = None,
-            note: str = None,
-            email: str = None,
-            user_group_uuids: [str] = None,
-            first_name: str = None,
-            last_name: str = None,
-            mobile_phone: str = None,
-            business_phone: str = None,
-            inactive: bool = None,
-            policy_uuids: [str] = None,
-            send_notification: SendNotificationType = None,
-            time_zone: str = None
+            update_user_input: UpdateUserInput
     ) -> User:
         """Allow updating properties of an existing user
 
         :param uuid: The unique identifier of the user that should be updated
         :type uuid: str
-        :param name: The name of the user
-        :type name: str, optional
-        :param password: The password of the user. Changing the user's password
-            through this API will cause the user to have his password changed
-            at next login.
-        :type password: str, optional
-        :param note: An optional note for the user
-        :type note: str, optional
-        :param email: The user's business email address
-        :type email: str, optional
-        :param user_group_uuids: List of unique identifiers this user shall be
-            part of. To remove a user from a user group, only specify the UUIDs
-            of the groups the user shall be part of
-        :type user_group_uuids: [str], optional
-        :param first_name: The user's first name
-        :type first_name: str, optional
-        :param last_name: The user's last name
-        :type last_name: str, optional
-        :param mobile_phone: The user's mobile phone number
-        :type mobile_phone: str, optional
-        :param business_phone: The user's business phone number
-        :type business_phone: str, optional
-        :param inactive: Specifies if the user is inactive / disabled. Inactive
-            users are still in the database but can not log in to nebulon ON.
-        :type inactive: bool, optional
-        :param policy_uuids: List of RBAC policies that shall be assigned to
-            the user
-        :type policy_uuids: [str], optional
-        :param send_notification:  Specifies if, and the rate at which the user
-            wants to receive email notifications for alerts in nebulon ON. By
-            default, no email notifications are sent.
-        :type send_notification: SendNotificationType, optional
-        :param time_zone: Allows specifying the user's time zone.
-        :type time_zone: str, optional
+        :param update_user_input: An input object that describes the changes
+            to apply to the user account
+        :type update_user_input: UpdateUserInput
 
         :returns User: The updated user account
 
@@ -1017,21 +920,7 @@ class UsersMixin(NebMixin):
         parameters = dict()
         parameters["uuid"] = GraphQLParam(uuid, "UUID", True)
         parameters["input"] = GraphQLParam(
-            UpdateUserInput(
-                name=name,
-                password=password,
-                email=email,
-                user_group_uuids=user_group_uuids,
-                first_name=first_name,
-                last_name=last_name,
-                note=note,
-                mobile_phone=mobile_phone,
-                business_phone=business_phone,
-                inactive=inactive,
-                policy_uuids=policy_uuids,
-                send_notification=send_notification,
-                time_zone=time_zone
-            ),
+            update_user_input,
             "UpdateUserInput",
             True
         )

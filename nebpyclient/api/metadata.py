@@ -1,5 +1,5 @@
 #
-# Copyright 2020 Nebulon, Inc.
+# Copyright 2021 Nebulon, Inc.
 # All Rights Reserved.
 #
 # DISCLAIMER: THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND,
@@ -24,7 +24,7 @@ class MetaValue:
     ):
         """Constructs a new MetaValue object
 
-        This constructor expects a dict() object from the nebulon ON API. It
+        This constructor expects a ``dict`` object from the nebulon ON API. It
         will check the returned data against the currently implemented schema
         of the SDK.
 
@@ -56,39 +56,6 @@ class MetaValue:
         ]
 
 
-class SupportMetadata:
-    """Metadata information for Support options"""
-
-    def __init__(
-            self,
-            response: dict
-    ):
-        """Constructs a new SupportMetadata object
-
-        This constructor expects a dict() object from the nebulon ON API. It
-        will check the returned data against the currently implemented schema
-        of the SDK.
-
-        :param response: The JSON response from the server
-        :type response: dict
-
-        :raises ValueError: An error if illegal data is returned from the server
-        """
-        self.__resource_types = read_value(
-            "resourceTypes", response, MetaValue, True)
-
-    @property
-    def resource_types(self) -> str:
-        """List of possible resource types"""
-        return self.__resource_types
-
-    @staticmethod
-    def fields():
-        return [
-            "resourceTypes{%s}" % ",".join(MetaValue.fields()),
-        ]
-
-
 class RBACMetadata:
     """Metadata information for role-based access control"""
 
@@ -98,7 +65,7 @@ class RBACMetadata:
     ):
         """Constructs a new RBACMetadata list object
 
-        This constructor expects a dict() object from the nebulon ON API. It
+        This constructor expects a ``dict`` object from the nebulon ON API. It
         will check the returned data against the currently implemented schema
         of the SDK.
 
@@ -132,7 +99,7 @@ class RBACMetadata:
 
 
 class Metadata:
-    """Metadata information that describes UCAPI"""
+    """Metadata information that describes resources in the nebulon ON API"""
 
     def __init__(
             self,
@@ -140,7 +107,7 @@ class Metadata:
     ):
         """Constructs a new Metadata object
 
-        This constructor expects a dict() object from the nebulon ON API. It
+        This constructor expects a ``dict`` object from the nebulon ON API. It
         will check the returned data against the currently implemented schema
         of the SDK.
 
@@ -151,24 +118,16 @@ class Metadata:
         """
         self.__rbac = read_value(
             "rbac", response, RBACMetadata, False)
-        self.__support = read_value(
-            "support", response, SupportMetadata, False)
 
     @property
     def rbac(self) -> RBACMetadata:
         """Metadata information for role-based access control"""
         return self.__rbac
 
-    @property
-    def support(self) -> SupportMetadata:
-        """Metadata information for support"""
-        return self.__support
-
     @staticmethod
     def fields():
         return [
             "rbac{%s}" % ",".join(RBACMetadata.fields()),
-            "support{%s}" % ",".join(SupportMetadata.fields()),
         ]
 
 
@@ -176,9 +135,10 @@ class MetadataMixin(NebMixin):
     """Mixin to add metadata related methods to the GraphQL client"""
 
     def get_metadata(self) -> Metadata:
-        """Retrieves a list of metadata information describing UCAPI
+        """Retrieves metadata information describing the nebulon ON API
 
-        :returns Metadata: Metadata information that describes UCAPI
+        :returns Metadata: Metadata information object that describes various
+            aspects of the nebulon ON API
 
         :raises GraphQLError: An error with the GraphQL endpoint.
         """
@@ -186,7 +146,6 @@ class MetadataMixin(NebMixin):
         # make the request
         response = self._query(
             name="getMetadata",
-            params=None,
             fields=Metadata.fields()
         )
 

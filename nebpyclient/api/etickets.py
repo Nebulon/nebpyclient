@@ -1,5 +1,5 @@
 #
-# Copyright 2020 Nebulon, Inc.
+# Copyright 2021 Nebulon, Inc.
 # All Rights Reserved.
 #
 # DISCLAIMER: THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND,
@@ -25,6 +25,7 @@ class SupportCaseStatus(NebEnum):
     Working = "Working"
     Escalated = "Escalated"
     Closed = "Closed"
+    OnHold = "OnHold"
 
 
 class SupportCaseIssueType(NebEnum):
@@ -43,6 +44,62 @@ class SupportCasePriority(NebEnum):
     High = "High"
     Medium = "Medium"
     Low = "Low"
+
+
+class SupportCaseResourceType(NebEnum):
+    """Indicates the resource type related to a support case"""
+
+    Other = "Other"
+    Alert = "Alert"
+    Diagnostic = "Diagnostic"
+    User = "User"
+    UserGroup = "UserGroup"
+    RBAC = "RBAC"
+    Server = "Server"
+    PhysicalDrive = "PhysicalDrive"
+    nPod = "nPod"
+    nPodGroup = "nPodGroup"
+    SPU = "SPU"
+    SDK = "SDK"
+    Volume = "Volume"
+    Snapshot = "Snapshot"
+    LUN = "LUN"
+    NetworkInterface = "NetworkInterface"
+    Datacenter = "Datacenter"
+    Room = "Room"
+    Row = "Row"
+    Rack = "Rack"
+    nPodTemplate = "nPodTemplate"
+    SnapshotTemplate = "SnapshotTemplate"
+    Application = "Application"
+    Webhook = "Webhook"
+    GUI = "GUI"
+    Documentation = "Documentation"
+    OperatingSystem = "OperatingSystem"
+
+
+class SupportCaseOrigin(NebEnum):
+    """Defines the origin of a support case"""
+
+    Customer = "Customer"
+    """
+    Support case was created by the customer
+    """
+
+    NebulonON = "NebulonON"
+    """
+    Support case was created by nebulon ON
+    """
+
+    OEM = "OEM"
+    """
+    Support case was created by the server vendor
+    """
+
+    Unknown = "Unknown"
+    """
+    Origin of the support case is unknown
+    """
 
 
 class SupportCaseSort:
@@ -73,8 +130,8 @@ class SupportCaseSort:
         :param created_date: Sort direction for the ``created_date`` property
             of a support case object.
         :type created_date: SortDirection, optional
-        :param updated_date: Sort direction for the ``updated_date`` property of
-            a support case object.
+        :param updated_date: Sort direction for the ``updated_date`` property
+            of a support case object.
         :type updated_date: SortDirection, optional
         """
 
@@ -114,7 +171,7 @@ class SupportCaseSort:
 
 
 class SupportCaseFilter:
-    """A filter object to filter support cases.
+    """A filter object to filter support cases
 
     Allows filtering for specific support cases in nebulon ON. The
     filter allows only one property to be specified.
@@ -125,7 +182,9 @@ class SupportCaseFilter:
             number: str = None,
             status: SupportCaseStatus = None,
             issue_type: SupportCaseIssueType = None,
-            contact_uuid: str = None
+            contact_id: str = None,
+            resource_type: SupportCaseResourceType = None,
+            resource_type_other: str = None,
     ):
         """Constructs a new filter object
 
@@ -138,14 +197,22 @@ class SupportCaseFilter:
         :type status: SupportCaseStatus, optional
         :param issue_type: Filter based on support case type
         :type issue_type: SupportCaseIssueType, optional
-        :param contact_uuid: Filter based on the support case contact
-        :type contact_uuid: str, optional
+        :param contact_id: Filter based on the support case contact
+        :type contact_id: str, optional
+        :param resource_type: Filter based on resource type
+        :type resource_type: SupportCaseResourceType, optional
+        :param resource_type_other: If ``resource_type`` is ``Other`` this
+            parameter allows specifying a custom text for the resource type.
+            This value is ignored if ``resource_type`` is not set to ``Other``.
+        :type resource_type_other: str, optional
         """
 
         self.__number = number
         self.__status = status
         self.__issue_type = issue_type
-        self.__contact_uuid = contact_uuid
+        self.__contact_id = contact_id
+        self.__resource_type = resource_type
+        self.__resource_type_other = resource_type_other
 
     @property
     def number(self) -> str:
@@ -163,9 +230,19 @@ class SupportCaseFilter:
         return self.__issue_type
 
     @property
-    def contact_uuid(self) -> str:
+    def contact_id(self) -> str:
         """Filter based on the support case contact"""
-        return self.__contact_uuid
+        return self.__contact_id
+
+    @property
+    def resource_type(self) -> SupportCaseResourceType:
+        """Filter based on resource type"""
+        return self.__resource_type
+
+    @property
+    def resource_type_other(self) -> str:
+        """Filter based on resource type information for other"""
+        return self.__resource_type_other
 
     @property
     def as_dict(self):
@@ -173,7 +250,9 @@ class SupportCaseFilter:
         result["number"] = self.number
         result["status"] = self.status
         result["issueType"] = self.issue_type
-        result["contactID"] = self.contact_uuid
+        result["contactID"] = self.contact_id
+        result["resourceType"] = self.resource_type
+        result["resourceTypeOther"] = self.resource_type_other
         return result
 
 
@@ -181,9 +260,9 @@ class CreateSupportCaseInput:
     """An input object to create a new support case
 
     Allows creation of a support case in nebulon ON. A support case allows
-    customers to get their issues associated with nebulon Cloud-Defined Storage
-    to be resolved with their preferred support channel. Issues may include
-    infrastructure and hardware issues, software issues, or questions.
+    customers to get their issues associated with Nebulon to be resolved with
+    their preferred support channel. Issues may include infrastructure and
+    hardware issues, software issues, or general questions.
     """
 
     def __init__(
@@ -194,6 +273,7 @@ class CreateSupportCaseInput:
             issue_type: SupportCaseIssueType,
             spu_serial: str = None,
             resource_type: ResourceType = None,
+            resource_type_other: str = None,
             resource_id: str = None
     ):
         """Constructs a new input object to create a support case
@@ -202,12 +282,14 @@ class CreateSupportCaseInput:
         At a minimum, customers need to supply a ``subject`` that describes the
         high level summary of the issue, a ``description`` that details their
         specific problem, a ``priority`` to indicate the urgency of the request,
-        and the ``issue_type`` to better route the support case to the appropriate
-        subject matter expert.
+        and the ``issue_type`` to better route the support case to the
+        appropriate subject matter expert.
 
         If the issue is related to a specific services processing unit (SPU) or
         resource in nebulon ON or in the customer's datacenter, ``spu_serial``,
-        ``resource_type``, and ``resource_id`` shall be specified.
+        ``resource_type``, and ``resource_id`` shall be specified. If
+        ``resource_type`` is ``Other``, customers can specify a more precise
+        type by use of the ``resource_type_other`` property.
 
         :param subject: High level summary of an issue
         :type subject: str
@@ -224,6 +306,9 @@ class CreateSupportCaseInput:
         :type spu_serial: str, optional
         :param resource_type: The type of resource related to the support case.
         :type resource_type: ResourceType, optional
+        :param resource_type_other: The description of the resource type when
+            ``resource_type`` is ``Other``.
+        :type resource_type_other: str, optional
         :param resource_id: The unique identifier of the resource related to
             the support case. If ``resource_type`` is specified, also this
             parameter should be supplied.
@@ -236,6 +321,7 @@ class CreateSupportCaseInput:
         self.__issue_type = issue_type
         self.__spu_serial = spu_serial
         self.__resource_type = resource_type
+        self.__resource_type_other = resource_type_other
         self.__resource_id = resource_id
 
     @property
@@ -269,6 +355,11 @@ class CreateSupportCaseInput:
         return self.__resource_type
 
     @property
+    def resource_type_other(self) -> str:
+        """Description of the resource when ``resource_type`` is ``Other``"""
+        return self.__resource_type_other
+
+    @property
     def resource_id(self) -> str:
         """Unique identifier for the resource related to the support case"""
         return self.__resource_id
@@ -282,7 +373,51 @@ class CreateSupportCaseInput:
         result["issueType"] = self.issue_type
         result["spuSerial"] = self.spu_serial
         result["resourceType"] = self.resource_type
+        result["resourceTypeOther"] = self.resource_type_other
         result["resourceID"] = self.resource_id
+        return result
+
+
+class DeleteSupportCaseAttachmentInput:
+    """An input object to delete an attachment from a support case
+
+    Allows deleting an attachment from a support case. An attachment can be
+    used to provide support with additional information, screenshots or log
+    files.
+    """
+
+    def __init__(
+            self,
+            unique_id: str,
+            file_name: str
+    ):
+        """Constructs a new input object to delete an attachment from a case
+
+        Allows deleting an attachment from a support case. An attachment can be
+        used to provide support with additional information, screenshots or log
+        files.
+
+        :param unique_id: The unique identifier of the attachment
+        :param file_name: The name of the file
+        """
+        self.__unique_id = unique_id
+        self.__file_name = file_name
+
+    @property
+    def unique_id(self) -> str:
+        """The unique identifier of the attachment"""
+        return self.__unique_id
+
+    @property
+    def file_name(self) -> str:
+        """The name of the file"""
+        return self.__file_name
+
+    @property
+    def as_dict(self):
+        result = dict()
+        result["uniqueID"] = self.unique_id
+        result["fileName"] = self.file_name
         return result
 
 
@@ -308,15 +443,15 @@ class UpdateSupportCaseInput:
         """Constructs a new input object to update an existing support case
 
         :param subject: High level summary of an issue
-        :type subject: str
+        :type subject: str, optional
         :param description: Detailed description of the issue that requires
             resolution
-        :type description: str
+        :type description: str, optional
         :param priority: The urgency of the request
-        :type priority: SupportCasePriority,
+        :type priority: SupportCasePriority, optional
         :param status: The new status of the support case. If an issue is
-            resolved, use `SupportCaseStatus.Closed`.
-        :type status: SupportCaseStatus
+            resolved, use ``SupportCaseStatus.Closed``.
+        :type status: SupportCaseStatus, optional
         :param contact_user_uuid: Allows changing the user contact at the
             customer that shall be contacted by support for this issue.
         :type contact_user_uuid: str, optional
@@ -399,7 +534,7 @@ class SupportCaseComment:
     ):
         """Constructs a new support case comment object
 
-        This constructor expects a dict() object from the nebulon ON API. It
+        This constructor expects a ``dict`` object from the nebulon ON API. It
         will check the returned data against the currently implemented schema
         of the SDK.
 
@@ -453,7 +588,7 @@ class SupportCaseContact:
     ):
         """Constructs a new support case contact object
 
-        This constructor expects a dict() object from the nebulon ON API. It
+        This constructor expects a ``dict`` object from the nebulon ON API. It
         will check the returned data against the currently implemented schema
         of the SDK.
 
@@ -524,7 +659,7 @@ class SupportCaseAttachment:
     ):
         """Constructs a new support case attachment object
 
-        This constructor expects a dict() object from the nebulon ON API. It
+        This constructor expects a ``dict`` object from the nebulon ON API. It
         will check the returned data against the currently implemented schema
         of the SDK.
 
@@ -586,7 +721,7 @@ class SupportCase:
     ):
         """Constructs a new support case object
 
-        This constructor expects a dict() object from the nebulon ON API. It
+        This constructor expects a ``dict`` object from the nebulon ON API. It
         will check the returned data against the currently implemented schema
         of the SDK.
 
@@ -608,6 +743,8 @@ class SupportCase:
             "issueType", response, SupportCaseIssueType, True)
         self.__status = read_value(
             "status", response, SupportCaseStatus, True)
+        self.__origin = read_value(
+            "origin", response, SupportCaseOrigin, True)
         self.__created_date = read_value(
             "createdDate", response, datetime, True)
         self.__updated_date = read_value(
@@ -627,9 +764,13 @@ class SupportCase:
         self.__improvement_suggestion = read_value(
             "improvementSuggestion", response, str, True)
         self.__resource_type = read_value(
-            "resourceType", response, str, True)
+            "resourceType", response, SupportCaseResourceType, True)
+        self.__resource_type_other = read_value(
+            "resourceTypeOther", response, str, True)
         self.__resource_id = read_value(
             "resourceID", response, str, True)
+        self.__resource_name = read_value(
+            "resourceName", response, str, True)
         self.__alert_id = read_value(
             "alertID", response, str, True)
         self.__spu_serial = read_value(
@@ -676,6 +817,11 @@ class SupportCase:
         return self.__status
 
     @property
+    def origin(self) -> SupportCaseOrigin:
+        """Origin of the support case"""
+        return self.__origin
+
+    @property
     def created_date(self) -> datetime:
         """Date and time when the support case was created"""
         return self.__created_date
@@ -716,14 +862,24 @@ class SupportCase:
         return self.__improvement_suggestion
 
     @property
-    def resource_type(self) -> str:
+    def resource_type(self) -> SupportCaseResourceType:
         """Associated resource type for the support case"""
         return self.__resource_type
+
+    @property
+    def resource_type_other(self) -> SupportCaseResourceType:
+        """Resource type description when ``resource_type`` is ``Other``"""
+        return self.__resource_type_other
 
     @property
     def resource_id(self) -> str:
         """Unique identifier of the associated resource for the support case"""
         return self.__resource_id
+
+    @property
+    def resource_name(self) -> str:
+        """Name of the associated resource for the support case"""
+        return self.__resource_name
 
     @property
     def alert_id(self) -> str:
@@ -769,6 +925,7 @@ class SupportCase:
             "priority",
             "issueType",
             "status",
+            "origin",
             "createdDate",
             "updatedDate",
             "closedDate",
@@ -779,7 +936,9 @@ class SupportCase:
             "attachments{%s}" % (",".join(SupportCaseAttachment.fields())),
             "improvementSuggestion",
             "resourceType",
+            "resourceTypeOther",
             "resourceID",
+            "resourceName",
             "alertID",
             "spuSerial",
             "kbLink",
@@ -794,7 +953,7 @@ class SupportCaseList:
     """Paginated support case list object
 
     Contains a list of support case objects and information for
-    pagination. By default a single page includes a maximum of `100` items
+    pagination. By default a single page includes a maximum of ``100`` items
     unless specified otherwise in the paginated query.
 
     Consumers should always check for the property ``more`` as per default
@@ -807,7 +966,7 @@ class SupportCaseList:
     ):
         """Constructs a new support case list object
 
-        This constructor expects a dict() object from the nebulon ON API. It
+        This constructor expects a ``dict`` object from the nebulon ON API. It
         will check the returned data against the currently implemented schema
         of the SDK.
 
@@ -827,7 +986,7 @@ class SupportCaseList:
             "items", response, SupportCase, True)
 
     @property
-    def items(self) -> list:
+    def items(self) -> [SupportCase]:
         """List of support cases in the pagination list"""
         return self.__items
 
@@ -869,7 +1028,7 @@ class SupportCaseMixin(NebMixin):
 
         :param page: The requested page from the server. This is an optional
             argument and if omitted the server will default to returning the
-            first page with a maximum of `100` items.
+            first page with a maximum of ``100`` items.
         :type page: PageInput, optional
         :param sc_filter: A filter object to filter support cases on the
             server. If omitted, the server will return all objects as a
@@ -906,13 +1065,7 @@ class SupportCaseMixin(NebMixin):
 
     def create_support_case(
             self,
-            subject: str,
-            description: str,
-            priority: SupportCasePriority,
-            issue_type: SupportCaseIssueType,
-            spu_serial: str = None,
-            resource_type: str = None,
-            resource_id: str = None
+            create_input: CreateSupportCaseInput
     ) -> SupportCase:
         """Allows creation of a new support case
 
@@ -927,25 +1080,8 @@ class SupportCaseMixin(NebMixin):
         resource in nebulon ON or in the customer's datacenter, ``spu_serial``,
         ``resource_type``, and ``resource_id`` shall be specified.
 
-        :param subject: High level summary of an issue
-        :type subject: str
-        :param description: Detailed description of the issue that requires
-            resolution
-        :type description: str
-        :param priority: The urgency of the request
-        :type priority: SupportCasePriority,
-        :param issue_type: The type of issue. If the issue is not clearly
-            identifiable, use `SupportCaseIssueType.Unknown`.
-        :type issue_type: SupportCaseIssueType
-        :param spu_serial: The serial number of an SPU related to the support
-            case.
-        :type spu_serial: str, optional
-        :param resource_type: The type of resource related to the support case.
-        :type resource_type: ResourceType, optional
-        :param resource_id: The unique identifier of the resource related to
-            the support case. If ``resource_type`` is specified, also this
-            parameter should be supplied.
-        :type resource_id: str, optional
+        :param create_input: A definition of the support case to create
+        :type create_input: CreateSupportCaseInput
 
         :returns SupportCase: The created support case.
 
@@ -955,15 +1091,7 @@ class SupportCaseMixin(NebMixin):
         # setup parameters
         parameters = dict()
         parameters["input"] = GraphQLParam(
-            CreateSupportCaseInput(
-                subject=subject,
-                description=description,
-                priority=priority,
-                issue_type=issue_type,
-                spu_serial=spu_serial,
-                resource_type=resource_type,
-                resource_id=resource_id
-            ),
+            create_input,
             "CreateSupportCaseInput",
             True
         )
@@ -981,38 +1109,15 @@ class SupportCaseMixin(NebMixin):
     def update_support_case(
             self,
             case_number: str,
-            subject: str = None,
-            description: str = None,
-            priority: SupportCasePriority = None,
-            status: SupportCaseStatus = None,
-            contact_user_uuid: str = None,
-            improvement_suggestion: str = None,
-            comment: str = None
+            update_input: UpdateSupportCaseInput
     ) -> SupportCase:
         """Allows updating an existing support case
 
         :param case_number: The case number of the support case to update
         :type case_number: str
-        :param subject: High level summary of an issue
-        :type subject: str
-        :param description: Detailed description of the issue that requires
-            resolution
-        :type description: str
-        :param priority: The urgency of the request
-        :type priority: SupportCasePriority,
-        :param status: The new status of the support case. If an issue is
-            resolved, use `SupportCaseStatus.Closed`.
-        :type status: SupportCaseStatus
-        :param contact_user_uuid: Allows changing the user contact at the
-            customer that shall be contacted by support for this issue.
-        :type contact_user_uuid: str, optional
-        :param improvement_suggestion: Allows providing feedback to how support
-            handled the support case and suggest any improvements for future
-            requests.
-        :type improvement_suggestion: str, optional
-        :param comment: Allows specifying a comment for the support case as a
-            response to a support question or to provide further details.
-        :type comment: str, optional
+        :param update_input: A definition of the updates to make to the
+            support case
+        :type update_input: UpdateSupportCaseInput
 
         :returns SupportCase: The updated support case.
 
@@ -1024,18 +1129,7 @@ class SupportCaseMixin(NebMixin):
         parameters["caseNumber"] = GraphQLParam(
             case_number, "String", True)
         parameters["input"] = GraphQLParam(
-            UpdateSupportCaseInput(
-                subject=subject,
-                description=description,
-                priority=priority,
-                status=status,
-                contact_user_uuid=contact_user_uuid,
-                improvement_suggestion=improvement_suggestion,
-                comment=comment
-            ),
-            "UpdateSupportCaseInput",
-            True
-        )
+            update_input, "UpdateSupportCaseInput", True)
 
         # make the request
         response = self._mutation(
@@ -1074,6 +1168,74 @@ class SupportCaseMixin(NebMixin):
         # make the request
         response = self._mutation(
             name="uploadSupportCaseAttachment",
+            params=parameters,
+            fields=SupportCase.fields()
+        )
+
+        # convert to object
+        return SupportCase(response)
+
+    def cancel_support_case_attachment(
+            self,
+            case_number: str,
+            file_name: str
+    ) -> bool:
+        """Allows canceling the upload of an attachment
+
+        :param case_number: The case number of the support case to update
+        :type case_number: str
+        :param file_name: The file name for the upload
+        :type file_name: str
+
+        :returns bool: An indicator if the cancellation was successful.
+
+        :raises GraphQLError: An error with the GraphQL endpoint.
+        """
+
+        # setup parameters
+        parameters = dict()
+        parameters["caseNumber"] = GraphQLParam(
+            case_number, "String", True)
+        parameters["fileName"] = GraphQLParam(
+            file_name, "String", True)
+
+        # make the request
+        response = self._mutation(
+            name="cancelSupportCaseAttachmentUpload",
+            params=parameters,
+            fields=SupportCase.fields()
+        )
+
+        # response is a bool
+        return response
+
+    def delete_support_case_attachment(
+            self,
+            case_number: str,
+            delete_input: DeleteSupportCaseAttachmentInput
+    ) -> SupportCase:
+        """Allows deleting an attachment from a support case
+
+        :param case_number: The case number of the support case to update
+        :type case_number: str
+        :param delete_input: Parameters for the delete operation
+        :type delete_input: DeleteSupportCaseAttachmentInput
+
+        :returns SupportCase: The updated support case.
+
+        :raises GraphQLError: An error with the GraphQL endpoint.
+        """
+
+        # setup parameters
+        parameters = dict()
+        parameters["caseNumber"] = GraphQLParam(
+            case_number, "String", True)
+        parameters["input"] = GraphQLParam(
+            delete_input, "DeleteSupportCaseAttachmentInput", True)
+
+        # make the request
+        response = self._mutation(
+            name="deleteSupportCaseAttachment",
             params=parameters,
             fields=SupportCase.fields()
         )

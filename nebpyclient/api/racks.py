@@ -1,5 +1,5 @@
 #
-# Copyright 2020 Nebulon, Inc.
+# Copyright 2021 Nebulon, Inc.
 # All Rights Reserved.
 #
 # DISCLAIMER: THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND,
@@ -13,7 +13,7 @@
 
 from .graphqlclient import GraphQLParam, NebMixin
 from .common import PageInput, read_value
-from .filters import UuidFilter, StringFilter
+from .filters import UUIDFilter, StringFilter
 from .sorting import SortDirection
 
 __all__ = [
@@ -68,9 +68,9 @@ class RackFilter:
 
     def __init__(
             self,
-            uuid: UuidFilter = None,
+            uuid: UUIDFilter = None,
             name: StringFilter = None,
-            row_uuid: UuidFilter = None,
+            row_uuid: UUIDFilter = None,
             location: StringFilter = None,
             and_filter=None,
             or_filter=None
@@ -82,11 +82,11 @@ class RackFilter:
         options to concatenate multiple filters.
 
         :param uuid: Filter based on rack unique identifiers
-        :type uuid: UuidFilter, optional
+        :type uuid: UUIDFilter, optional
         :param name: Filter based on rack name
         :type name: StringFilter, optional
         :param row_uuid: Filter based on the rack's row unique identifier
-        :type row_uuid: UuidFilter, optional
+        :type row_uuid: UUIDFilter, optional
         :param location: Filter based on the rack's location
         :type location: StringFilter, optional
         :param and_filter: Concatenate another filter with a logical AND
@@ -103,7 +103,7 @@ class RackFilter:
         self.__or = or_filter
 
     @property
-    def uuid(self) -> UuidFilter:
+    def uuid(self) -> UUIDFilter:
         """Filter based on rack unique identifier"""
         return self.__uuid
 
@@ -113,7 +113,7 @@ class RackFilter:
         return self.__name
 
     @property
-    def row_uuid(self) -> UuidFilter:
+    def row_uuid(self) -> UUIDFilter:
         """Filter based on the rack's row unique identifier"""
         return self.__row_uuid
 
@@ -288,7 +288,7 @@ class Rack:
     ):
         """Constructs a new rack object
 
-        This constructor expects a dict() object from the nebulon ON API. It
+        This constructor expects a ``dict`` object from the nebulon ON API. It
         will check the returned data against the currently implemented schema
         of the SDK.
 
@@ -364,7 +364,7 @@ class RackList:
     """Paginated rack list object
 
     Contains a list of rack objects and information for
-    pagination. By default a single page includes a maximum of `100` items
+    pagination. By default a single page includes a maximum of ``100`` items
     unless specified otherwise in the paginated query.
 
     Consumers should always check for the property ``more`` as per default
@@ -377,7 +377,7 @@ class RackList:
     ):
         """Constructs a new rack list object
 
-        This constructor expects a dict() object from the nebulon ON API. It
+        This constructor expects a ``dict`` object from the nebulon ON API. It
         will check the returned data against the currently implemented schema
         of the SDK.
 
@@ -438,7 +438,7 @@ class RacksMixin(NebMixin):
 
         :param page: The requested page from the server. This is an optional
             argument and if omitted the server will default to returning the
-            first page with a maximum of `100` items.
+            first page with a maximum of ``100`` items.
         :type page: PageInput, optional
         :param rack_filter: A filter object to filter the racks on
             the server. If omitted, the server will return all objects as a
@@ -475,24 +475,16 @@ class RacksMixin(NebMixin):
 
     def create_rack(
             self,
-            name: str,
-            row_uuid: str,
-            note: str = None,
-            location: str = None
+            create_rack_input: CreateRackInput
     ) -> Rack:
         """Allows creation of a new rack object
 
         A rack record allows customers to logically organize their
         infrastructure by physical location.
 
-        :param row_uuid: Unique identifier for the parent row
-        :type row_uuid: str
-        :param name: Name for the new rack
-        :type name: str
-        :param note: An optional note for the new rack
-        :type note: str, optional
-        :param location: An optional location for the new rack
-        :type location: str, optional
+        :param create_rack_input: A parameter that describes the rack to be
+            created for a row.
+        :type create_rack_input: CreateRackInput
 
         :returns Rack: The new rack.
 
@@ -502,12 +494,7 @@ class RacksMixin(NebMixin):
         # setup query parameters
         parameters = dict()
         parameters["input"] = GraphQLParam(
-            CreateRackInput(
-                row_uuid=row_uuid,
-                name=name,
-                note=note,
-                location=location
-            ),
+            create_rack_input,
             "CreateRackInput",
             True
         )
@@ -529,9 +516,9 @@ class RacksMixin(NebMixin):
         """Allows deletion of an existing rack object
 
         The deletion of a rack is only possible if the rack has no hosts
-        (servers) associated.
+        (servers) associated with it.
 
-        :param uuid: The unique identifier of the datacenter room to delete
+        :param uuid: The unique identifier of the rack to delete
         :type uuid: str
 
         :returns bool: If the query was successful
@@ -556,10 +543,7 @@ class RacksMixin(NebMixin):
     def update_rack(
             self,
             uuid: str,
-            row_uuid: str = None,
-            name: str = None,
-            note: str = None,
-            location: str = None
+            update_rack_input: UpdateRackInput
     ) -> Rack:
         """Allows updating properties of an existing rack object
 
@@ -567,15 +551,9 @@ class RacksMixin(NebMixin):
 
         :param uuid: The unique identifier of the rack to update
         :type uuid: str
-        :param row_uuid: New parent row for the rack
-        :type row_uuid: str, optional
-        :param name: New name for the rack
-        :type name: str, optional
-        :param note: The new note for the rack. For removing the note, provide
-            an empty str.
-        :type note: str, optional
-        :param location: A new optional location for the rack
-        :type location: str, optional
+        :param update_rack_input: A parameter describing all changes to apply
+            to the rack that is identified by the ``uuid`` parameter
+        :type update_rack_input: UpdateRackInput
 
         :returns Rack: The updated rack object.
 
@@ -586,12 +564,7 @@ class RacksMixin(NebMixin):
         parameters = dict()
         parameters["uuid"] = GraphQLParam(uuid, "UUID", True)
         parameters["input"] = GraphQLParam(
-            UpdateRackInput(
-                row_uuid=row_uuid,
-                name=name,
-                note=note,
-                location=location,
-            ),
+            update_rack_input,
             "UpdateRackInput",
             True
         )

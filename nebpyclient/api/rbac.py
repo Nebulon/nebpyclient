@@ -1,5 +1,5 @@
 #
-# Copyright 2020 Nebulon, Inc.
+# Copyright 2021 Nebulon, Inc.
 # All Rights Reserved.
 #
 # DISCLAIMER: THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND,
@@ -11,10 +11,9 @@
 # DEALINGS IN THE SOFTWARE.
 #
 
-
 from .graphqlclient import GraphQLParam, NebMixin
 from .common import PageInput, read_value
-from .filters import UuidFilter, StringFilter
+from .filters import UUIDFilter, StringFilter
 from .sorting import SortDirection
 
 __all__ = [
@@ -75,7 +74,7 @@ class RBACRoleFilter:
 
     def __init__(
             self,
-            uuid: UuidFilter = None,
+            uuid: UUIDFilter = None,
             name: StringFilter = None,
             and_filter=None,
             or_filter=None
@@ -87,7 +86,7 @@ class RBACRoleFilter:
         options to concatenate multiple filters.
 
         :param uuid: Filter based on RBAC role unique identifiers
-        :type uuid: UuidFilter, optional
+        :type uuid: UUIDFilter, optional
         :param name: Filter based on RBAC role name
         :type name: StringFilter, optional
         :param and_filter: Concatenate another filter with a logical AND
@@ -102,7 +101,7 @@ class RBACRoleFilter:
         self.__or = or_filter
 
     @property
-    def uuid(self) -> UuidFilter:
+    def uuid(self) -> UUIDFilter:
         """Filter based on RBAC role unique identifier"""
         return self.__uuid
 
@@ -140,7 +139,7 @@ class CreateRBACRoleInput:
     propagate to any user that is associated with a role.
 
     Rights are defined through a string with the format
-    `{resource}/{permission}`, where the following resources are available:
+    ``{resource}/{permission}``, where the following resources are available:
 
     * ``*``
     * ``Datacenter``
@@ -171,34 +170,32 @@ class CreateRBACRoleInput:
     * ``create`` - create operations are permitted
     * ``update`` - update operations are permitted
     * ``delete`` - delete operations are permitted
-    * ``execute`` - execute operations are permitted (used for operations that \
-        do not fall in the above categories)
 
-    The number and type of permissions and resources may change over time and
-    users can query the currently available resources and permissions with
-    the ``get_metadata`` query.
-
+    > [!NOTE]
+    > The number and type of permissions and resources may change over time and
+    > users can query the currently available resources and permissions with
+    > the ``get_metadata`` query.
     """
 
     def __init__(
             self,
             name: str,
-            description: str,
-            rights: [str]
+            rights: [str],
+            description: str = None
     ):
         """Constructs a new input object to create a RBAC role
 
         :param name: Human readable name for the RBAC role
         :type name: str
-        :param description: A description that well describes the role and
-            associated rights. The role description should provide enough
-            clarity so that users should not have to read individual rights
-        :type description: str
         :param rights: List of rights definitions. Please review the class
             description of options for ``resource`` and ``permission`` in the
             rights string that is in the format `{resource}/{permission}`. Use
             the ``get_metadata`` query to retrieve the latest list of options.
         :type rights: [str]
+        :param description: A description that well describes the role and
+            associated rights. The role description should provide enough
+            clarity so that users should not have to read individual rights
+        :type description: str, optional
         """
 
         self.__name = name
@@ -238,13 +235,13 @@ class UpdateRBACRoleInput:
     propagate to any user that is associated with a role.
 
     Rights are defined through a string with the format
-    `{resource}/{permission}`, where the following resources are available:
+    ``{resource}/{permission}``, where the following resources are available:
 
-    * `*`
+    * ``*``
     * ``Datacenter``
     * ``Lab``
     * ``Audit``
-    * ``Alert``
+    * ``Alert```
     * ``FirmwareUpdate``
     * ``UserGroup``
     * ``nPodGroup``
@@ -264,38 +261,37 @@ class UpdateRBACRoleInput:
 
     The following permissions are available:
 
-    * `*` - everything is permitted
+    * ``*`` - everything is permitted
     * ``read`` - read operations are permitted
     * ``create`` - create operations are permitted
     * ``update`` - update operations are permitted
     * ``delete`` - delete operations are permitted
-    * ``execute`` - execute operations are permitted (used for operations that
-       do not fall in the above categories)
 
-    The number and type of permissions and resources may change over time and
-    users can query the currently available resources and permissions with
-    the ``get_metadata`` query.
+    > [!NOTE]
+    > The number and type of permissions and resources may change over time and
+    > users can query the currently available resources and permissions with
+    > the ``get_metadata`` query.
     """
 
     def __init__(
             self,
             name: str = None,
-            description: str = None,
-            rights: [str] = None
+            rights: [str] = None,
+            description: str = None
     ):
         """Constructs a new input object to update RBAC role properties
 
         :param name: Human readable name for the RBAC role
-        :type name: str
+        :type name: str, optional
         :param description: A description that well describes the role and
             associated rights. The role description should provide enough
             clarity so that users should not have to read individual rights
-        :type description: str
+        :type description: str, optional
         :param rights: List of rights definitions. Please review the class
             description of options for ``resource`` and ``permission`` in the
-            rights string that is in the format `{resource}/{permission}`. Use
+            rights string that is in the format ``{resource}/{permission}``. Use
             the ``get_metadata`` query to retrieve the latest list of options.
-        :type rights: [str]
+        :type rights: [str], optional
         """
 
         self.__name = name
@@ -335,15 +331,13 @@ class RBACRole:
     propagate to any user that is associated with a role.
 
     Rights are defined through a string with the format
-    `{resource}/{permission}`, where the following permissions are defined:
+    ``{resource}/{permission}``, where the following permissions are defined:
 
     * `*` - everything is permitted
     * ``read`` - read operations are permitted
     * ``create`` - create operations are permitted
     * ``update`` - update operations are permitted
     * ``delete`` - delete operations are permitted
-    * ``execute`` - execute operations are permitted (used for operations that
-       do not fall in the above categories)
     """
 
     def __init__(
@@ -352,7 +346,7 @@ class RBACRole:
     ):
         """Constructs a new RBAC role object
 
-        This constructor expects a dict() object from the nebulon ON API. It
+        This constructor expects a ``dict`` object from the nebulon ON API. It
         will check the returned data against the currently implemented schema
         of the SDK.
 
@@ -413,7 +407,7 @@ class RBACRoleList:
     """Paginated RBAC role list object
 
     Contains a list of RBAC role objects and information for
-    pagination. By default a single page includes a maximum of `100` items
+    pagination. By default a single page includes a maximum of ``100`` items
     unless specified otherwise in the paginated query.
 
     Consumers should always check for the property ``more`` as per default
@@ -426,7 +420,7 @@ class RBACRoleList:
     ):
         """Constructs a new RBAC role list object
 
-        This constructor expects a dict() object from the nebulon ON API. It
+        This constructor expects a ``dict`` object from the nebulon ON API. It
         will check the returned data against the currently implemented schema
         of the SDK.
 
@@ -484,25 +478,26 @@ class RBACPolicySort:
 
     def __init__(
             self,
-            name: SortDirection = None
+            role_name: SortDirection = None
     ):
         """Constructs a new sort object for RBAC policies
 
-        :param name: Sort direction for the ``name`` property
-        :type name: SortDirection, optional
+        :param role_name: Sort direction for the ``name`` property of the
+            associated RBAC role
+        :type role_name: SortDirection, optional
         """
 
-        self.__name = name
+        self.__role_name = role_name
 
     @property
-    def name(self) -> SortDirection:
-        """Sort direction for the ``name`` property"""
-        return self.__name
+    def role_name(self) -> SortDirection:
+        """Sort direction for the ``name`` property of the associated role"""
+        return self.__role_name
 
     @property
     def as_dict(self):
         result = dict()
-        result["name"] = self.name
+        result["roleName"] = self.role_name
         return result
 
 
@@ -517,8 +512,8 @@ class RBACPolicyFilter:
 
     def __init__(
             self,
-            uuid: UuidFilter = None,
-            role_uuid: UuidFilter = None,
+            uuid: UUIDFilter = None,
+            role_uuid: UUIDFilter = None,
             and_filter=None,
             or_filter=None
     ):
@@ -529,9 +524,9 @@ class RBACPolicyFilter:
         options to concatenate multiple filters.
 
         :param uuid: Filter based on RBAC role unique identifiers
-        :type uuid: UuidFilter, optional
+        :type uuid: UUIDFilter, optional
         :param role_uuid: Filter based on RBAC role unique identifiers
-        :type role_uuid: UuidFilter, optional
+        :type role_uuid: UUIDFilter, optional
         :param and_filter: Concatenate another filter with a logical AND
         :type and_filter: DataCenterFilter, optional
         :param or_filter: Concatenate another filter with a logical OR
@@ -544,12 +539,12 @@ class RBACPolicyFilter:
         self.__or = or_filter
 
     @property
-    def uuid(self) -> UuidFilter:
+    def uuid(self) -> UUIDFilter:
         """Filter based on RBAC policy unique identifier"""
         return self.__uuid
 
     @property
-    def role_uuid(self) -> UuidFilter:
+    def role_uuid(self) -> UUIDFilter:
         """Filter based on RBAC role unique identifier"""
         return self.__role_uuid
 
@@ -582,16 +577,15 @@ class CreateRBACPolicyInput:
     will not allow two policies with the same definition.
 
     Scopes are defined through a string with the format
-    `/nPodGroup/{npod_group_uuid}/nPod/{npod_uuid}` with varying length. For
+    ``/nPodGroup/{npod_group_uuid}/nPod/{npod_uuid}`` with varying length. For
     example:
 
-    - `/nPodGroup/*`:
-        scopes the policy to all nPod groups in the organization
-    - `/nPodGroup/{npod_group_uuid}/nPod/*`:
-        scopes the policy to a specific nPod group in the organization and all
-        nPods in this group.
-    - `/nPodGroup/{npod_group_uuid}/nPod/{npod_uuid}`:
-        scopes the policy to a specific nPod.
+    - ``/nPodGroup/*`` scopes the policy to all nPod groups in the
+      organization.
+    - ``/nPodGroup/{npod_group_uuid}/nPod/*`` scopes the policy to a specific
+      nPod group in the organization and all nPods in this group.
+    - ``/nPodGroup/{npod_group_uuid}/nPod/{npod_uuid}`` scopes the policy to a
+      specific nPod.
 
     User groups are not added and removed from a policy through this API, but
     through the ``users`` API. Use ``create_user_group``, ``update_user_group``
@@ -612,15 +606,15 @@ class CreateRBACPolicyInput:
         Nebulon ON will not allow two policies with the same definition.
 
         Scopes are defined through a string with the format
-        `/nPodGroup/{npod_group_uuid}/nPod/{npod_uuid}` with varying length. For
-        example:
+        ``/nPodGroup/{npod_group_uuid}/nPod/{npod_uuid}`` with varying length.
+        For example:
 
-        - `/nPodGroup/*` scopes the policy to all nPod groups in the
-            organization
-        - `/nPodGroup/{npod_group_uuid}/nPod/*` scopes the policy to a specific
-            nPod group in the organization and all nPods in this group.
-        - `/nPodGroup/{npod_group_uuid}/nPod/{npod_uuid}` scopes the policy to a
-            specific nPod.
+        - ``/nPodGroup/*`` scopes the policy to all nPod groups in the
+          organization.
+        - ``/nPodGroup/{npod_group_uuid}/nPod/*`` scopes the policy to a
+          specific nPod group in the organization and all nPods in this group.
+        - ``/nPodGroup/{npod_group_uuid}/nPod/{npod_uuid}`` scopes the policy
+          to a specific nPod.
 
         User groups are not added and removed from a policy through this API,
         but through the ``users`` API. Use ``create_user_group``,
@@ -665,16 +659,15 @@ class UpdateRBACPolicyInput:
     will not allow two policies with the same definition.
 
     Scopes are defined through a string with the format
-    `/nPodGroup/{npod_group_uuid}/nPod/{npod_uuid}` with varying length. For
+    ``/nPodGroup/{npod_group_uuid}/nPod/{npod_uuid}`` with varying length. For
     example:
 
-    - `/nPodGroup/*`:
-        scopes the policy to all nPod groups in the organization
-    - `/nPodGroup/{npod_group_uuid}/nPod/*`:
-        scopes the policy to a specific nPod group in the organization and all
-        nPods in this group.
-    - `/nPodGroup/{npod_group_uuid}/nPod/{npod_uuid}`:
-        scopes the policy to a specific nPod.
+    - ``/nPodGroup/*`` scopes the policy to all nPod groups in the
+      organization.
+    - ``/nPodGroup/{npod_group_uuid}/nPod/*`` scopes the policy to a
+      specific nPod group in the organization and all nPods in this group.
+    - ``/nPodGroup/{npod_group_uuid}/nPod/{npod_uuid}`` scopes the policy
+      to a specific nPod.
 
     User groups are not added and removed from a policy through this API, but
     through the ``users`` API. Use ``create_user_group``, ``update_user_group``
@@ -694,15 +687,15 @@ class UpdateRBACPolicyInput:
         Nebulon ON will not allow two policies with the same definition.
 
         Scopes are defined through a string with the format
-        `/nPodGroup/{npod_group_uuid}/nPod/{npod_uuid}` with varying length. For
-        example:
+        ``/nPodGroup/{npod_group_uuid}/nPod/{npod_uuid}`` with varying length.
+        For example:
 
-        - `/nPodGroup/*` scopes the policy to all nPod groups in the
-            organization
-        - `/nPodGroup/{npod_group_uuid}/nPod/*` scopes the policy to a specific
-            nPod group in the organization and all nPods in this group.
-        - `/nPodGroup/{npod_group_uuid}/nPod/{npod_uuid}` scopes the policy to a
-            specific nPod.
+        - ``/nPodGroup/*`` scopes the policy to all nPod groups in the
+          organization.
+        - ``/nPodGroup/{npod_group_uuid}/nPod/*`` scopes the policy to a
+          specific nPod group in the organization and all nPods in this group.
+        - ``/nPodGroup/{npod_group_uuid}/nPod/{npod_uuid}`` scopes the policy
+          to a specific nPod.
 
         User groups are not added and removed from a policy through this API,
         but through the ``users`` API. Use ``create_user_group``,
@@ -736,7 +729,7 @@ class RBACPolicy:
     will not allow two policies with the same definition.
 
     Scopes are defined through a string with the format
-    `/nPodGroup/{npod_group_uuid}/nPod/{npod_uuid}` with varying length. For
+    ``/nPodGroup/{npod_group_uuid}/nPod/{npod_uuid}`` with varying length. For
     example:
 
     - `/nPodGroup/*` scopes the policy to all nPod groups in the organization
@@ -752,7 +745,7 @@ class RBACPolicy:
     ):
         """Constructs a new RBAC policy object
 
-        This constructor expects a dict() object from the nebulon ON API. It
+        This constructor expects a ``dict`` object from the nebulon ON API. It
         will check the returned data against the currently implemented schema
         of the SDK.
 
@@ -812,7 +805,7 @@ class RBACPolicyList:
     """Paginated RBAC policy list object
 
     Contains a list of RBAC policy objects and information for
-    pagination. By default a single page includes a maximum of `100` items
+    pagination. By default a single page includes a maximum of ``100`` items
     unless specified otherwise in the paginated query.
 
     Consumers should always check for the property ``more`` as per default
@@ -825,7 +818,7 @@ class RBACPolicyList:
     ):
         """Constructs a new RBAC policy list object
 
-        This constructor expects a dict() object from the nebulon ON API. It
+        This constructor expects a ``dict`` object from the nebulon ON API. It
         will check the returned data against the currently implemented schema
         of the SDK.
 
@@ -886,7 +879,7 @@ class RBACMixin(NebMixin):
 
         :param page: The requested page from the server. This is an optional
             argument and if omitted the server will default to returning the
-            first page with a maximum of `100` items.
+            first page with a maximum of ``100`` items.
         :type page: PageInput, optional
         :param rbac_filter: A filter object to filter the RBAC roles on
             the server. If omitted, the server will return all objects as a
@@ -923,9 +916,7 @@ class RBACMixin(NebMixin):
 
     def create_rbac_role(
             self,
-            name: str,
-            description: str,
-            rights: [str]
+            create_rbac_role_input: CreateRBACRoleInput
     ) -> RBACRole:
         """Allows creation of a new RBAC role
 
@@ -934,22 +925,10 @@ class RBACMixin(NebMixin):
         Rights can be added and removed if these responsibilities change and
         propagate to any user that is associated with a role.
 
-        Rights are defined through a string with the format
-        `{resource}/{permission}`. The number and type of permissions and
-        resources may change over time and users can query the currently
-        available resources and permissions with the ``get_metadata`` query.
+        :param create_rbac_role_input: A parameter describing the RBAC role to
+            create.
+        :type create_rbac_role_input: CreateRBACRoleInput
 
-        :param name: Human readable name for the RBAC role
-        :type name: str
-        :param description: A description that well describes the role and
-            associated rights. The role description should provide enough
-            clarity so that users should not have to read individual rights
-        :type description: str
-        :param rights: List of rights definitions. Please review the class
-            description of options for ``resource`` and ``permission`` in the
-            rights string that is in the format `{resource}/{permission}`. Use
-            the ``get_metadata`` query to retrieve the latest list of options.
-        :type rights: [str]
 
         :returns RBACRole: The new RBAC role.
 
@@ -959,11 +938,7 @@ class RBACMixin(NebMixin):
         # setup query parameters
         parameters = dict()
         parameters["input"] = GraphQLParam(
-            CreateRBACRoleInput(
-                name=name,
-                description=description,
-                rights=rights
-            ),
+            create_rbac_role_input,
             "CreateRBACRoleInput",
             True
         )
@@ -981,9 +956,7 @@ class RBACMixin(NebMixin):
     def update_rbac_role(
             self,
             uuid: str,
-            name: str = None,
-            description: str = None,
-            rights: [str] = None
+            update_rbac_role_input: UpdateRBACRoleInput
     ) -> RBACRole:
         """Allows updating of RBAC role properties
 
@@ -992,24 +965,9 @@ class RBACMixin(NebMixin):
         Rights can be added and removed if these responsibilities change and
         propagate to any user that is associated with a role.
 
-        Rights are defined through a string with the format
-        `{resource}/{permission}`. The number and type of permissions and
-        resources may change over time and users can query the currently
-        available resources and permissions with the ``get_metadata`` query.
-
-        :param uuid: The RBAC role unique identifier to update
-        :type uuid: str
-        :param name: Human readable name for the RBAC role
-        :type name: str
-        :param description: A description that well describes the role and
-            associated rights. The role description should provide enough
-            clarity so that users should not have to read individual rights
-        :type description: str
-        :param rights: List of rights definitions. Please review the class
-            description of options for ``resource`` and ``permission`` in the
-            rights string that is in the format `{resource}/{permission}`. Use
-            the ``get_metadata`` query to retrieve the latest list of options.
-        :type rights: [str]
+        :param update_rbac_role_input: A parameter that describes the changes
+            to apply to the RBAC role identified by ``uuid``.
+        :type update_rbac_role_input: UpdateRBACRoleInput
 
         :returns RBACRole: The new RBAC role.
 
@@ -1020,11 +978,7 @@ class RBACMixin(NebMixin):
         parameters = dict()
         parameters["uuid"] = GraphQLParam(uuid, "UUID", True)
         parameters["input"] = GraphQLParam(
-            UpdateRBACRoleInput(
-                name=name,
-                description=description,
-                rights=rights
-            ),
+            update_rbac_role_input,
             "UpdateRBACRoleInput",
             True
         )
@@ -1077,7 +1031,7 @@ class RBACMixin(NebMixin):
 
         :param page: The requested page from the server. This is an optional
             argument and if omitted the server will default to returning the
-            first page with a maximum of `100` items.
+            first page with a maximum of ``100`` items.
         :type page: PageInput, optional
         :param rbac_filter: A filter object to filter the RBAC policies on
             the server. If omitted, the server will return all objects as a
@@ -1114,8 +1068,7 @@ class RBACMixin(NebMixin):
 
     def create_rbac_policy(
             self,
-            role_uuid: str,
-            scopes: [str]
+            create_rbac_policy_input: CreateRBACPolicyInput
     ) -> RBACPolicy:
         """Allows creation of a new RBAC policy
 
@@ -1124,28 +1077,9 @@ class RBACMixin(NebMixin):
         policies, users and user groups can be added and removed from policies.
         Nebulon ON will not allow two policies with the same definition.
 
-        Scopes are defined through a string with the format
-        `/nPodGroup/{npod_group_uuid}/nPod/{npod_uuid}` with varying length. For
-        example:
-
-        - `/nPodGroup/*` scopes the policy to all nPod groups in the
-            organization
-        - `/nPodGroup/{npod_group_uuid}/nPod/*` scopes the policy to a specific
-            nPod group in the organization and all nPods in this group.
-        - `/nPodGroup/{npod_group_uuid}/nPod/{npod_uuid}` scopes the policy to a
-            specific nPod.
-
-        User groups are not added and removed from a policy through this API,
-        but through the ``users`` API. Use ``create_user_group``,
-        ``update_user_group`` for adding and removing user groups to RBAC
-        policies and similarly ``create_user`` and ``update_user``.
-
-        :param role_uuid: The RBAC role unique identifier to associate with
-            the policy
-        :type role_uuid: str
-        :param scopes: List of scope definitions that this policy applies to.
-            At least one scope must be provided.
-        :type scopes: [str]
+        :param create_rbac_policy_input: A parameter that describes the policy
+            to create
+        :type create_rbac_policy_input: CreateRBACPolicyInput
 
         :returns RBACPolicy: The new RBAC policy
 
@@ -1155,10 +1089,7 @@ class RBACMixin(NebMixin):
         # setup query parameters
         parameters = dict()
         parameters["input"] = GraphQLParam(
-            CreateRBACPolicyInput(
-                role_uuid=role_uuid,
-                scopes=scopes,
-            ),
+            create_rbac_policy_input,
             "CreateRBACPolicyInput",
             True
         )
@@ -1176,7 +1107,7 @@ class RBACMixin(NebMixin):
     def update_rbac_policy(
             self,
             uuid: str,
-            scopes: [str]
+            update_rbac_policy_input: UpdateRBACPolicyInput
     ) -> RBACPolicy:
         """Allows updating of RBAC policy properties
 
@@ -1185,27 +1116,11 @@ class RBACMixin(NebMixin):
         policies, users and user groups can be added and removed from policies.
         Nebulon ON will not allow two policies with the same definition.
 
-        Scopes are defined through a string with the format
-        `/nPodGroup/{npod_group_uuid}/nPod/{npod_uuid}` with varying length. For
-        example:
-
-        - `/nPodGroup/*` scopes the policy to all nPod groups in the
-            organization
-        - `/nPodGroup/{npod_group_uuid}/nPod/*` scopes the policy to a specific
-            nPod group in the organization and all nPods in this group.
-        - `/nPodGroup/{npod_group_uuid}/nPod/{npod_uuid}` scopes the policy to a
-            specific nPod.
-
-        User groups are not added and removed from a policy through this API,
-        but through the ``users`` API. Use ``create_user_group``,
-        ``update_user_group`` for adding and removing user groups to RBAC
-        policies and similarly ``create_user`` and ``update_user``.
-
         :param uuid: The RBAC policy unique identifier to update
         :type uuid: str
-        :param scopes: List of scope definitions that this policy applies to.
-            At least one scope must be provided.
-        :type scopes: [str]
+        :param update_rbac_policy_input: A parameter that describes the
+            modifications to make to the RBAC policy identified by ``uuid``.
+        :type update_rbac_policy_input: UpdateRBACPolicyInput
 
         :returns RBACPolicy: The updated RBAC policy
 
@@ -1216,9 +1131,7 @@ class RBACMixin(NebMixin):
         parameters = dict()
         parameters["uuid"] = GraphQLParam(uuid, "UUID", True)
         parameters["input"] = GraphQLParam(
-            UpdateRBACPolicyInput(
-                scopes=scopes,
-            ),
+            update_rbac_policy_input,
             "UpdateRBACPolicyInput",
             True
         )

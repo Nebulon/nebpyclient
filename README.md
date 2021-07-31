@@ -9,6 +9,9 @@ scriptable form.
 The Nebulon Python SDK client is available through the Python Package Index
 with the name nebpyclient, but can also be installed from source.
 
+**IMPORTANT**: Please review the changelog to transition from version 1.x of the
+nebpyclient to version 2.x.
+
 ### Python Package Index
 
 ```bash

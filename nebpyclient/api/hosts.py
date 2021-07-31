@@ -1,5 +1,5 @@
 #
-# Copyright 2020 Nebulon, Inc.
+# Copyright 2021 Nebulon, Inc.
 # All Rights Reserved.
 #
 # DISCLAIMER: THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND,
@@ -14,11 +14,11 @@
 from .graphqlclient import GraphQLParam, NebMixin
 from datetime import datetime
 from .common import PageInput, read_value
-from .filters import StringFilter
+from .filters import StringFilter, UUIDFilter
 from .sorting import SortDirection
 
 __all__ = [
-    "Dimm",
+    "DIMM",
     "Host",
     "HostSort",
     "HostFilter",
@@ -45,6 +45,7 @@ class HostFilter:
             manufacturer: StringFilter = None,
             chassis_serial: StringFilter = None,
             board_serial: StringFilter = None,
+            npod_uuid: UUIDFilter = None,
             and_filter=None,
             or_filter=None
     ):
@@ -55,7 +56,7 @@ class HostFilter:
         options to concatenate multiple filters.
 
         :param uuid: Filter based on host unique identifier
-        :type uuid: UuidFilter, optional
+        :type uuid: UUIDFilter, optional
         :param name: Filter based on host name
         :type name: StringFilter, optional
         :param model: Filter based on model name
@@ -66,6 +67,8 @@ class HostFilter:
         :type chassis_serial: StringFilter, optional
         :param board_serial: Filter based on board serial
         :type board_serial: StringFilter, optional
+        :param npod_uuid: Filter based on nPod unique identifier
+        :type npod_uuid: UUIDFilter, optional
         :param and_filter: Concatenate another filter with a logical AND
         :type and_filter: DataCenterFilter, optional
         :param or_filter: Concatenate another filter with a logical OR
@@ -78,6 +81,7 @@ class HostFilter:
         self.__manufacturer = manufacturer
         self.__chassis_serial = chassis_serial
         self.__board_serial = board_serial
+        self.__npod_uuid = npod_uuid
         self.__and = and_filter
         self.__or = or_filter
 
@@ -110,6 +114,11 @@ class HostFilter:
     def board_serial(self) -> StringFilter:
         """Filter based on board serial number"""
         return self.__board_serial
+    
+    @property
+    def npod_uuid(self) -> UUIDFilter:
+        """Filter based on nPod unique identifier"""
+        return self.__npod_uuid
 
     @property
     def and_filter(self):
@@ -130,6 +139,7 @@ class HostFilter:
         result["manufacturer"] = self.manufacturer
         result["chassisSerial"] = self.chassis_serial
         result["boardSerial"] = self.board_serial
+        result["nPodUUID"] = self.npod_uuid
         result["and"] = self.and_filter
         result["or"] = self.or_filter
         return result
@@ -240,7 +250,7 @@ class HostSort:
         return result
 
 
-class Dimm:
+class DIMM:
     """A memory DIMM object"""
 
     def __init__(
@@ -249,7 +259,7 @@ class Dimm:
     ):
         """Constructs a new DIMM object
 
-        This constructor expects a dict() object from the nebulon ON API. It
+        This constructor expects a ``dict`` object from the nebulon ON API. It
         will check the returned data against the currently implemented schema
         of the SDK.
 
@@ -299,7 +309,7 @@ class Host:
     ):
         """Constructs a new host object
 
-        This constructor expects a dict() object from the nebulon ON API. It
+        This constructor expects a ``dict`` object from the nebulon ON API. It
         will check the returned data against the currently implemented schema
         of the SDK.
 
@@ -324,7 +334,7 @@ class Host:
         self.__npod_uuid = read_value(
             "nPod.uuid", response, str, False)
         self.__spu_serials = read_value(
-            "spus.serial", response, str, True)
+            "spus.serial", response, str, False)
         self.__spu_count = read_value(
             "spuCount", response, int, True)
         self.__rack_uuid = read_value(
@@ -346,7 +356,7 @@ class Host:
         self.__dimm_count = read_value(
             "dimmCount", response, int, True)
         self.__dimms = read_value(
-            "dimms", response, Dimm, True)
+            "dimms", response, DIMM, True)
         self.__memory_bytes = read_value(
             "memoryBytes", response, int, True)
         self.__lom_hostname = read_value(
@@ -447,7 +457,7 @@ class Host:
         return self.__dimm_count
 
     @property
-    def dimms(self) -> [Dimm]:
+    def dimms(self) -> [DIMM]:
         """List of DIMMs installed in this host"""
         return self.__dimms
 
@@ -492,7 +502,7 @@ class Host:
             "cpuThreadCount",
             "cpuSpeed",
             "dimmCount",
-            "dimms{%s}" % (",".join(Dimm.fields())),
+            "dimms{%s}" % (",".join(DIMM.fields())),
             "memoryBytes",
             "lomHostname",
             "lomAddress",
@@ -504,7 +514,7 @@ class HostList:
     """Paginated host list object
 
     Contains a list of host objects and information for
-    pagination. By default a single page includes a maximum of `100` items
+    pagination. By default a single page includes a maximum of ``100`` items
     unless specified otherwise in the paginated query.
 
     Consumers should always check for the property ``more`` as per default
@@ -517,7 +527,7 @@ class HostList:
     ):
         """Constructs a new host list object
 
-        This constructor expects a dict() object from the nebulon ON API. It
+        This constructor expects a ``dict`` object from the nebulon ON API. It
         will check the returned data against the currently implemented schema
         of the SDK.
 
@@ -528,13 +538,13 @@ class HostList:
         """
 
         self.__more = read_value(
-            "more", response, bool, False)
+            "more", response, bool, True)
         self.__total_count = read_value(
-            "totalCount", response, int, False)
+            "totalCount", response, int, True)
         self.__filtered_count = read_value(
-            "filteredCount", response, int, False)
+            "filteredCount", response, int, True)
         self.__items = read_value(
-            "items", response, Host, False)
+            "items", response, Host, True)
 
     @property
     def items(self) -> [Host]:
@@ -572,19 +582,19 @@ class HostsMixin(NebMixin):
     def get_hosts(
             self,
             page: PageInput = None,
-            h_filter: HostFilter = None,
+            host_filter: HostFilter = None,
             sort: HostSort = None
     ) -> HostList:
         """Retrieves a list of host objects
 
         :param page: The requested page from the server. This is an optional
             argument and if omitted the server will default to returning the
-            first page with a maximum of `100` items.
+            first page with a maximum of ``100`` items.
         :type page: PageInput, optional
-        :param h_filter: A filter object to filter the hosts on the
+        :param host_filter: A filter object to filter the hosts on the
             server. If omitted, the server will return all objects as a
             paginated response.
-        :type h_filter: HostFilter, optional
+        :type host_filter: HostFilter, optional
         :param sort: A sort definition object to sort the host objects
             on supported properties. If omitted objects are returned in the
             order as they were created in.
@@ -600,7 +610,7 @@ class HostsMixin(NebMixin):
         parameters["page"] = GraphQLParam(
             page, "PageInput", False)
         parameters["filter"] = GraphQLParam(
-            h_filter, "HostFilter", False)
+            host_filter, "HostFilter", False)
         parameters["sort"] = GraphQLParam(
             sort, "HostSort", False)
 
@@ -617,31 +627,22 @@ class HostsMixin(NebMixin):
     def update_host(
             self,
             uuid: str,
-            name: str = None,
-            rack_uuid: str = None,
-            note: str = None
+            host_input: UpdateHostInput
     ):
         """Allows updating properties of a host object
 
         :param uuid: The unique identifier of the host to update
         :type uuid: str
-        :param name: The new name of the host (server)
-        :type name: str, optional
-        :param rack_uuid: Allows assigning the host (server) to a rack
-        :type rack_uuid: str, optional
-        :param note: An optional note for the host
-        :type note: str, optional
+        :param host_input: The update object, describing the changes to 
+            apply to the host
+        :type host_input: UpdateHostInput
         """
 
         # setup query parameters
         parameters = dict()
         parameters["uuid"] = GraphQLParam(uuid, "String", True)
         parameters["input"] = GraphQLParam(
-            UpdateHostInput(
-                name=name,
-                rack_uuid=rack_uuid,
-                note=note
-            ),
+            host_input,
             "UpdateHostInput",
             True
         )

@@ -1,5 +1,5 @@
 #
-# Copyright 2020 Nebulon, Inc.
+# Copyright 2021 Nebulon, Inc.
 # All Rights Reserved.
 #
 # DISCLAIMER: THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND,
@@ -29,7 +29,9 @@ class AlertSeverity(NebEnum):
     """Defines the severity of an alert"""
 
     Unknown = "Unknown"
-    """Alert severity is not known"""
+    """
+    Alert severity is not known
+    """
 
     Urgent = "Urgent"
     """
@@ -45,7 +47,7 @@ class AlertSeverity(NebEnum):
 
     Major = "Major"
     """
-    Alert severity indicates that there is partial loss of functionality or 
+    Alert severity indicates that there is partial loss of functionality or
     partial data unavailability, no redundancy in a service (failure of one
     more resource will cause an outage) and requires immediate attention by
     service owners.
@@ -60,7 +62,7 @@ class AlertSeverity(NebEnum):
     Trivial = "Trivial"
     """
     Alert severity indicates that there is no loss in functionality, only minor
-    impacts to performance, or cosmetic issues or bugs, not affecting the 
+    impacts to performance, or cosmetic issues or bugs, not affecting the
     customer's ability to use the product
     """
 
@@ -109,15 +111,16 @@ class AlertFilter:
         :type created_before: datetime, optional
         :param severity: Filter alerts to include only alerts with the
             specified severity.
-        :type severity: ResourceType, optional
+        :type severity: AlertSeverity, optional
         :param resource_type: Filter alerts to include only alerts that are
             associated with the specified resource type
         :type resource_type: ResourceType, optional
         :param resource_id: Filter alerts to include only alerts that are
             associated with the specified resource identifier
-        :type resource_id: AlertStatus, optional
+        :type resource_id: str, optional
         :param status: Filter alerts to include only alerts that match the
-            specified status
+            specified status. This property is ignored for the get_open_alerts
+            query.
         :type status: AlertStatus, optional
         """
         self.__created_after = created_after
@@ -184,7 +187,7 @@ class Alert:
     ):
         """Constructs a new alert instance object
 
-        This constructor expects a dict() object from the nebulon ON API. It
+        This constructor expects a ``dict`` object from the nebulon ON API. It
         will check the returned data against the currently implemented schema
         of the SDK.
 
@@ -193,8 +196,11 @@ class Alert:
 
         :raises ValueError: An error if illegal data is returned from the server
         """
-        self.__id = read_value(
-            "id", response, str, True)
+
+        self.__incident_id = read_value(
+            "incidentID", response, str, True)
+        self.__event_id = read_value(
+            "eventID", response, str, True)
         self.__code = read_value(
             "code", response, str, True)
         self.__create_time = read_value(
@@ -219,11 +225,20 @@ class Alert:
             "details", response, str, True)
         self.__corrective_actions = read_value(
             "correctiveActions", response, str, False)
+        self.__action_operation = read_value(
+            "actionOperation", response, str, True)
+        self.__action_params = read_value(
+            "actionParams", response, str, True)
 
     @property
-    def id(self) -> str:
-        """Identifier of the alert"""
-        return self.__id
+    def incident_id(self) -> str:
+        """Identifier of the incident"""
+        return self.__incident_id
+
+    @property
+    def event_id(self) -> str:
+        """Identifier of the event (open or close)"""
+        return self.__event_id
 
     @property
     def code(self) -> str:
@@ -285,10 +300,21 @@ class Alert:
         """List of corrective actions to resolve the alert"""
         return self.__corrective_actions
 
+    @property
+    def action_operation(self) -> str:
+        """Name of the action to execute for this alert"""
+        return self.__action_operation
+
+    @property
+    def action_params(self) -> str:
+        """Parameters for the action requested by this alert"""
+        return self.__action_params
+
     @staticmethod
     def fields():
         return [
-            "id",
+            "incidentID",
+            "eventID",
             "code",
             "createTime",
             "resourceID",
@@ -301,15 +327,17 @@ class Alert:
             "summary",
             "details",
             "correctiveActions",
+            "actionOperation",
+            "actionParams"
         ]
 
 
 class AlertList:
     """Paginated Alert list object
 
-    Contains a list of alert objects and information for
-    pagination. By default a single page includes a maximum of `100` items
-    unless specified otherwise in the paginated query.
+    Contains a list of alert objects and information for pagination. By default
+    a single page includes a maximum of ``100`` items unless specified
+    otherwise in the paginated query.
 
     Consumers should always check for the property ``more`` as per default
     the server does not return the full list of alerts but only one page.
@@ -321,7 +349,7 @@ class AlertList:
     ):
         """Constructs a new alert list object
 
-        This constructor expects a dict() object from the nebulon ON API. It
+        This constructor expects a ``dict`` object from the nebulon ON API. It
         will check the returned data against the currently implemented schema
         of the SDK.
 
@@ -331,7 +359,7 @@ class AlertList:
         :raises ValueError: An error if illegal data is returned from the server
         """
         self.__items = read_value(
-            "items", response, Alert, False)
+            "items", response, Alert, True)
         self.__more = read_value(
             "more", response, bool, True)
         self.__total_count = read_value(
@@ -381,11 +409,12 @@ class AlertsMixin(NebMixin):
 
         :param page: The requested page from the server. This is an optional
             argument and if omitted the server will default to returning the
-            first page with a maximum of `100` items.
+            first page with a maximum of ``100`` items.
         :type page: PageInput, optional
         :param alert_filter: A filter object to filter the open alerts on the
             server. If omitted, the server will return all objects as a
-            paginated response.
+            paginated response. This query ignores the ``status`` property
+            of the filter and only returns open alerts.
         :type alert_filter: AlertFilter, optional
 
         :returns AlertList: A paginated list of open alerts.
@@ -415,18 +444,18 @@ class AlertsMixin(NebMixin):
             page: PageInput = None,
             alert_filter: AlertFilter = None
     ) -> AlertList:
-        """Retrieves a list of resolved alerts
+        """Retrieves a list of historical alerts
 
         :param page: The requested page from the server. This is an optional
             argument and if omitted the server will default to returning the
-            first page with a maximum of `100` items.
+            first page with a maximum of ``100`` items.
         :type page: PageInput, optional
         :param alert_filter: A filter object to filter the closed alerts on the
             server. If omitted, the server will return all objects as a
             paginated response.
         :type alert_filter: AlertFilter, optional
 
-        :returns AlertList: A paginated list of closed alerts.
+        :returns AlertList: A paginated list of historical alerts.
 
         :raises GraphQLError: An error with the GraphQL endpoint.
         """

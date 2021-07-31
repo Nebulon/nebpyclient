@@ -1,5 +1,5 @@
 #
-# Copyright 2020 Nebulon, Inc.
+# Copyright 2021 Nebulon, Inc.
 # All Rights Reserved.
 #
 # DISCLAIMER: THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND,
@@ -31,7 +31,7 @@ class LoginResults:
     ):
         """Constructs a new LoginResults object
 
-        This constructor expects a dict() object from the nebulon ON API. It
+        This constructor expects a ``dict`` object from the nebulon ON API. It
         will check the returned data against the currently implemented schema
         of the SDK.
 
@@ -54,7 +54,11 @@ class LoginResults:
         self.__eula_accepted = read_value(
             "eulaAccepted", response, bool, True)
         self.__user_preferences = read_value(
-            "userPreferences", response, dict, True)
+            "userPreferences", response, UserPreferences, True)
+        self.__need_two_factor_authentication = read_value(
+            "needTwoFactorAuthentication", response, bool, True)
+        self.__change_password = read_value(
+            "changePassword", response, bool, True)
 
     @property
     def success(self) -> bool:
@@ -91,6 +95,16 @@ class LoginResults:
         """Indicates if a user in the org has accepted the EULA"""
         return self.__eula_accepted
 
+    @property
+    def need_two_factor_authentication(self) -> bool:
+        """Indicates if two factor authentication is required"""
+        return self.__need_two_factor_authentication
+
+    @property
+    def change_password(self) -> bool:
+        """Indicates if a user in the org requires a password change"""
+        return self.__change_password
+
     @staticmethod
     def fields():
         return [
@@ -101,6 +115,8 @@ class LoginResults:
             "organizationName",
             "userPreferences{%s}" % (",".join(UserPreferences.fields())),
             "eulaAccepted",
+            "needTwoFactorAuthentication",
+            "changePassword"
         ]
 
 
@@ -113,7 +129,7 @@ class LoginState:
     ):
         """Constructs a new LoginState object
 
-        This constructor expects a dict() object from the nebulon ON API. It
+        This constructor expects a ``dict`` object from the nebulon ON API. It
         will check the returned data against the currently implemented schema
         of the SDK.
 
@@ -185,7 +201,7 @@ class SessionMixin(NebMixin):
         # setup parameters
         parameters = dict()
         parameters["username"] = GraphQLParam(username, "String", True)
-        parameters["password"] = GraphQLParam(password, "String", True)
+        parameters["password"] = GraphQLParam(password, "String", True, True)
 
         # make the request
         response = self._mutation(

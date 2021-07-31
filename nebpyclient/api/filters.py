@@ -1,5 +1,5 @@
 #
-# Copyright 2020 Nebulon, Inc.
+# Copyright 2021 Nebulon, Inc.
 # All Rights Reserved.
 #
 # DISCLAIMER: THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND,
@@ -13,7 +13,7 @@
 
 
 class StringFilter:
-    """A filter object to filter items based on str values."""
+    """A filter object to filter items based on ``str`` values."""
 
     def __init__(
             self,
@@ -35,11 +35,12 @@ class StringFilter:
         needed, use the ``and_filter`` and ``or_filter`` options to concatenate
         multiple filters.
 
-        :param equals: does a `==` comparison with the provided value
+        :param equals: does a ``==`` comparison with the provided value
         :type equals: str, optional
-        :param not_equals: does a `!=` comparison with the provided value
+        :param not_equals: does a ``!=`` comparison with the provided value
         :type not_equals: str, optional
-        :param contains: checks if the provided value is part of the ``str`` value
+        :param contains: checks if the provided value is a sub-string  of the
+            ``str`` value that is tested
         :type contains: str, optional
         :param not_contains: checks if the provided value is not part of the
             ``str`` value
@@ -161,19 +162,18 @@ class IntFilter:
         needed, use the ``and_filter`` and ``or_filter`` options to concatenate
         multiple filters.
 
-        :param equals: does a `==` comparison with the provided value
+        :param equals: does a ``==`` comparison with the provided value
         :type equals: int, optional
-        :param not_equals: does a `!=` comparison with the provided value
+        :param not_equals: does a ``!=`` comparison with the provided value
         :type not_equals: int, optional
-
-
-        :param less_than: does a `<` comparison with the provided value
+        :param less_than: does a ``<`` comparison with the provided value
         :type less_than: int, optional
-        :param less_than_equals: does a `<=` comparison with the provided value
+        :param less_than_equals: does a ``<=`` comparison with the provided
+            value
         :type less_than_equals: int, optional
-        :param greater_than: does a `>` comparison with the provided value
+        :param greater_than: does a ``>`` comparison with the provided value
         :type greater_than: int, optional
-        :param greater_than_equals: does a `>=` comparison with the provided
+        :param greater_than_equals: does a ``>=`` comparison with the provided
             value
         :type greater_than_equals: int, optional
         :param in_list: checks if the ``int`` value is in the provided list
@@ -196,32 +196,32 @@ class IntFilter:
 
     @property
     def equals(self) -> int:
-        """Filters values with a `==` comparison"""
+        """Filters values with a ``==`` comparison"""
         return self.__equals
 
     @property
     def not_equals(self) -> int:
-        """Filters values with a `!=` comparison"""
+        """Filters values with a ``!=`` comparison"""
         return self.__not_equals
 
     @property
     def less_than(self) -> int:
-        """Filters values with a `<` comparison"""
+        """Filters values with a ``<`` comparison"""
         return self.__less_than
 
     @property
     def less_than_equals(self) -> int:
-        """Filters values with a `<=` comparison"""
+        """Filters values with a ``<=`` comparison"""
         return self.__less_than_equals
 
     @property
     def greater_than(self) -> int:
-        """Filters values with a `>` comparison"""
+        """Filters values with a ``>`` comparison"""
         return self.__greater_than
 
     @property
     def greater_than_equals(self) -> int:
-        """Filters values with a `>=` comparison"""
+        """Filters values with a ``>=`` comparison"""
         return self.__greater_than_equals
 
     @property
@@ -254,7 +254,7 @@ class IntFilter:
         return result
 
 
-class UuidFilter:
+class UUIDFilter:
     """A filter object to filter on UUID values"""
 
     def __init__(
@@ -267,21 +267,21 @@ class UuidFilter:
     ):
         """Constructs a new ``UUID`` filter object
 
-        Allows filtering on ``UUID`` (str) value types. The filter allows only one
-        property to be specified. If filtering on multiple properties is
+        Allows filtering on ``UUID`` (str) value types. The filter allows only
+        one property to be specified. If filtering on multiple properties is
         needed, use the ``and_filter`` and ``or_filter`` options to concatenate
         multiple filters.
 
-        :param equals: does a `==` comparison with the provided value
+        :param equals: does a ``==`` comparison with the provided value
         :type equals: str, optional
-        :param not_equals: does a `!=` comparison with the provided value
+        :param not_equals: does a ``!=`` comparison with the provided value
         :type not_equals: str, optional
         :param in_filter: checks if the ``str`` value is in the provided list
         :type in_filter: [str], optional
         :param and_filter: Concatenate another filter with a logical AND
-        :type and_filter: UuidFilter, optional
+        :type and_filter: UUIDFilter, optional
         :param or_filter: Concatenate another filter with a logical OR
-        :type or_filter: UuidFilter, optional
+        :type or_filter: UUIDFilter, optional
         """
 
         self.__equals = equals

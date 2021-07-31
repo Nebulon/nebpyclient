@@ -1,5 +1,5 @@
 #
-# Copyright 2020 Nebulon, Inc.
+# Copyright 2021 Nebulon, Inc.
 # All Rights Reserved.
 #
 # DISCLAIMER: THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND,
@@ -27,6 +27,9 @@ __all__ = [
 class AuditStatus(NebEnum):
     """Defines the status of a record in the audit log"""
 
+    Unknown = "Unknown"
+    """Operation status is unknown"""
+
     InProgress = "InProgress"
     """Operation is still ongoing"""
 
@@ -34,7 +37,7 @@ class AuditStatus(NebEnum):
     """Operation completed successfully"""
 
     Failed = "Failed"
-    """Operation failed"""
+    """Operation completed with a failure"""
 
 
 class AuditLogFilter:
@@ -54,7 +57,8 @@ class AuditLogFilter:
             component: str = None,
             npod_uuid: str = None,
             spu_serial: str = None,
-            status: AuditStatus = None
+            status: AuditStatus = None,
+            user_uuid: str = None
     ):
         """Constructs a new filter object
 
@@ -65,10 +69,11 @@ class AuditLogFilter:
             were created before the specified date and time
         :type start_before: datetime, optional
         :param operation: Filter audit records to include only records that
-            match the specified operation name TODO: Add options
+            match the specified operation name
         :type operation: str, optional
         :param component: Filter audit records to include only records that
-            match the specified component TODO: Add options
+            match the specified component
+        :type component: str, optional
         :param npod_uuid: Filter audit records to include only records that
             are associated with the specified nPod unique identifier
         :type npod_uuid: str, optional
@@ -79,6 +84,9 @@ class AuditLogFilter:
         :param status: Filter audit records to include only records that match
             the specified operation status
         :type status: AuditStatus, optional
+        :param user_uuid: Filter audit records to include only records that
+            match the specified user unique identifier
+        :type user_uuid: str, optional
         """
 
         self.__start_after = start_after
@@ -88,6 +96,7 @@ class AuditLogFilter:
         self.__npod_uuid = npod_uuid
         self.__spu_serial = spu_serial
         self.__status = status
+        self.__user_uuid = user_uuid
 
     @property
     def start_after(self) -> datetime:
@@ -111,7 +120,7 @@ class AuditLogFilter:
 
     @property
     def npod_uuid(self) -> str:
-        """Filter for records that match the specified nPod UUID"""
+        """Filter for records that match the specified nPod unique identifier"""
         return self.__npod_uuid
 
     @property
@@ -125,6 +134,11 @@ class AuditLogFilter:
         return self.__status
 
     @property
+    def user_uuid(self) -> str:
+        """Filter for records that match the specified user identifier"""
+        return self.__user_uuid
+
+    @property
     def as_dict(self) -> dict:
         result = dict()
         result["startAfter"] = self.start_after
@@ -134,6 +148,7 @@ class AuditLogFilter:
         result["nPodUUID"] = self.npod_uuid
         result["spuSerial"] = self.spu_serial
         result["status"] = self.status
+        result['userUUID'] = self.user_uuid
         return result
 
 
@@ -153,7 +168,7 @@ class AuditLogEntry:
     ):
         """Constructs a new audit record instance object
 
-        This constructor expects a dict() object from the nebulon ON API. It
+        This constructor expects a ``dict`` object from the nebulon ON API. It
         will check the returned data against the currently implemented schema
         of the SDK.
 
@@ -179,6 +194,8 @@ class AuditLogEntry:
             "component", response, str, True)
         self.__component_id = read_value(
             "componentID", response, str, True)
+        self.__component_name = read_value(
+            "componentName", response, str, True)
         self.__user_uuid = read_value(
             "user.uuid", response, str, False)
         self.__user_name = read_value(
@@ -235,6 +252,11 @@ class AuditLogEntry:
         return self.__component_id
 
     @property
+    def component_name(self) -> str:
+        """Name of the affected component"""
+        return self.__component_name
+
+    @property
     def user_uuid(self) -> str:
         """Unique identifier of the user that executed the operation"""
         return self.__user_uuid
@@ -256,7 +278,7 @@ class AuditLogEntry:
 
     @property
     def client_ip(self) -> str:
-        """IP address of the client that invoked the operation"""
+        """Public IP address of the client that invoked the operation"""
         return self.__client_ip
 
     @property
@@ -280,6 +302,7 @@ class AuditLogEntry:
             "error",
             "component",
             "componentID",
+            "componentName",
             "user{uuid,name}",
             "nPod{uuid}",
             "spu{serial}",
@@ -292,9 +315,9 @@ class AuditLogEntry:
 class AuditLogList:
     """Paginated audit record list object
 
-    Contains a list of audit records and information for
-    pagination. By default a single page includes a maximum of `100` items
-    unless specified otherwise in the paginated query.
+    Contains a list of audit records and information for pagination. By default
+    a single page includes a maximum of ``100`` items unless specified
+    otherwise in the paginated query.
 
     Consumers should always check for the property ``more`` as per default
     the server does not return the full list of alerts but only one page.
@@ -306,7 +329,7 @@ class AuditLogList:
     ):
         """Constructs a new audit record list object
 
-        This constructor expects a dict() object from the nebulon ON API. It
+        This constructor expects a ``dict`` object from the nebulon ON API. It
         will check the returned data against the currently implemented schema
         of the SDK.
 
@@ -341,7 +364,7 @@ class AuditLogList:
 class AuditingMixin(NebMixin):
     """Mixin to add audit log related methods to the GraphQL client"""
 
-    def get_audit_records(
+    def get_audit_log(
             self,
             page: PageInput = None,
             audit_filter: AuditLogFilter = None
@@ -350,7 +373,7 @@ class AuditingMixin(NebMixin):
 
         :param page: The requested page from the server. This is an optional
             argument and if omitted the server will default to returning the
-            first page with a maximum of `100` items.
+            first page with a maximum of ``100`` items.
         :type page: PageInput, optional
         :param audit_filter: A filter object to filter the audit records on the
             server. If omitted, the server will return all objects as a
@@ -378,3 +401,28 @@ class AuditingMixin(NebMixin):
 
         # convert to object
         return AuditLogList(response)
+
+    def get_audit_records(
+            self,
+            page: PageInput = None,
+            audit_filter: AuditLogFilter = None
+    ) -> AuditLogList:
+        """Retrieves a list of audit records
+
+        :warning: This method was deprecated and will be removed in future
+            versions. Use the method ``get_audit_log`` instead.
+
+        :param page: The requested page from the server. This is an optional
+            argument and if omitted the server will default to returning the
+            first page with a maximum of ``100`` items.
+        :type page: PageInput, optional
+        :param audit_filter: A filter object to filter the audit records on the
+            server. If omitted, the server will return all objects as a
+            paginated response.
+        :type audit_filter: AuditLogFilter, optional
+
+        :returns AuditLogList: A paginated list of audit records
+
+        :raises GraphQLError: An error with the GraphQL endpoint
+        """
+        return self.get_audit_log(page, audit_filter)

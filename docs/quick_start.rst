@@ -54,7 +54,7 @@ name ``NPod Name`` would be:
 .. code-block:: python
 
     from nebpyclient import NebPyClient
-    from nebpyclient.api import NPodFilter, StringFilter
+    from nebpyclient import NPodFilter, StringFilter
 
     client = NebPyClient("username", "password")
 

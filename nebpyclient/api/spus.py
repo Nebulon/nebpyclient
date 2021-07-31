@@ -1,5 +1,5 @@
 #
-# Copyright 2020 Nebulon, Inc.
+# Copyright 2021 Nebulon, Inc.
 # All Rights Reserved.
 #
 # DISCLAIMER: THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND,
@@ -14,7 +14,7 @@
 from .graphqlclient import GraphQLParam, NebMixin
 from datetime import datetime
 from .common import PageInput, read_value
-from .filters import StringFilter
+from .filters import StringFilter, UUIDFilter
 from .sorting import SortDirection
 from .npods import NPodSpuInput, \
     BondType, \
@@ -86,6 +86,9 @@ class SpuFilter:
             self,
             serial: StringFilter = None,
             not_in_npod: bool = None,
+            host_ioc_wwn: StringFilter = None,
+            storage_ioc_wwn: StringFilter = None,
+            npod_uuid: UUIDFilter = None,
             and_filter=None,
             or_filter=None
     ):
@@ -97,8 +100,14 @@ class SpuFilter:
 
         :param serial: Filter based on SPU serial number
         :type serial: StringFilter, optional
-        :param not_in_npod: Filter for SPUs that are not in a nPod
+        :param not_in_npod: Filter by SPUs that are not in a nPod
         :type not_in_npod: bool, optional
+        :param host_ioc_wwn: Filter by SPU's host I/O controller
+        :type host_ioc_wwn: StringFilter, optional
+        :param storage_ioc_wwn: Filter by the SPU's storage I/O controller
+        :type storage_ioc_wwn: StringFilter, optional
+        :param npod_uuid: Filter by the SPU's nPod UUID
+        :type npod_uuid: UUIDFilter, optional
         :param and_filter: Concatenate another filter with a logical AND
         :type and_filter: SpuFilter, optional
         :param or_filter: Concatenate another filter with a logical OR
@@ -107,18 +116,36 @@ class SpuFilter:
 
         self.__serial = serial
         self.__not_in_npod = not_in_npod
+        self.__host_ioc_wwn = host_ioc_wwn
+        self.__storage_ioc_wwn = storage_ioc_wwn
+        self.__npod_uuid = npod_uuid
         self.__and = and_filter
         self.__or = or_filter
 
     @property
     def serial(self) -> StringFilter:
-        """Filter based on SPU serial number"""
+        """Filter by SPU serial number"""
         return self.__serial
 
     @property
     def not_in_npod(self) -> bool:
-        """Filter for SPUs that are not in a nPod"""
+        """Filter by SPUs that are not in a nPod"""
         return self.__not_in_npod
+
+    @property
+    def host_ioc_wwn(self) -> StringFilter:
+        """Filter by SPU's host I/O controller"""
+        return self.__host_ioc_wwn
+
+    @property
+    def storage_ioc_wwn(self) -> StringFilter:
+        """Filter by the SPU's storage I/O controller"""
+        return self.__storage_ioc_wwn
+
+    @property
+    def npod_uuid(self) -> UUIDFilter:
+        """Filter by the SPU's nPod UUID"""
+        return self.__npod_uuid
 
     @property
     def and_filter(self):
@@ -135,8 +162,96 @@ class SpuFilter:
         result = dict()
         result["serial"] = self.serial
         result["notInNPod"] = self.not_in_npod
+        result["hostIOCWWN"] = self.host_ioc_wwn
+        result["storageIOCWWN"] = self.storage_ioc_wwn
         result["and"] = self.and_filter
         result["or"] = self.or_filter
+        return result
+
+
+class DebugInfoInput:
+    """An input object to collect debug information
+
+    Allows collecting verbose debug information from services processing units
+    or nPods. Allows nebulon support to collect more detailed information
+    about a customer's infrastructure.
+
+    Use the ``note`` and ``suportCaseNumber`` properties for providing additional
+    information for nebulon support.
+
+    Either ``nopd_uuid`` or ``spu_serial`` must be specified. If a nPod is
+    referenced, the debug information is collected from all SPUs in the nPod,
+    otherwise only from the SPU that is identified by the provided serial
+    number.
+    """
+
+    def __init__(
+            self,
+            npod_uuid: str = None,
+            spu_serial: str = None,
+            note: str = None,
+            support_case_number: str = None
+    ):
+        """Constructs a new input object to collect debug info
+
+        Allows collecting verbose debug information from services processing units
+        or nPods. Allows nebulon support to collect more detailed information
+        about a customer's infrastructure.
+
+        Use the ``note`` and ``suportCaseNumber`` properties for providing additional
+        information for nebulon support.
+
+        Either ``nopd_uuid`` or ``spu_serial`` must be specified. If a nPod is
+        referenced, the debug information is collected from all SPUs in the nPod,
+        otherwise only from the SPU that is identified by the provided serial
+        number.
+
+        :param npod_uuid: The nPod UUID for which to collect debug information. All
+            SPUs in the nPod will be sending debug information to the cloud asynchronously
+        :type npod_uuid: str, optional
+        :param spu_serial: The serial number of the SPU for which to collect debug
+            information. The SPU will be sending debug information to the cloud
+            asynchronously.
+        :type spu_serial: str, optional
+        :param note: An optional note to add to the debug information.
+        :type note: str, optional
+        :param support_case_number: An optional support case number that can be used
+            to relate the diagnostic information to an open support case.
+        :type support_case_number: str, optional
+        """
+
+        self.__npod_uuid = npod_uuid
+        self.__spu_serial = spu_serial
+        self.__note = note
+        self.__support_case_number = support_case_number
+
+    @property
+    def npod_uuid(self) -> str:
+        """The nPod UUID for which to collect debug information"""
+        return self.__npod_uuid
+
+    @property
+    def spu_serial(self) -> str:
+        """The serial number of the SPU for which to collect debug information"""
+        return self.__spu_serial
+
+    @property
+    def note(self) -> str:
+        """An optional note to add to the debug information"""
+        return self.__note
+
+    @property
+    def support_case_number(self) -> str:
+        """An optional support case number reference"""
+        return self.__support_case_number
+
+    @property
+    def as_dict(self):
+        result = dict()
+        result["nPodUUID"] = self.npod_uuid
+        result["spuSerial"] = self.spu_serial
+        result["note"] = self.note
+        result["supportCaseNumber"] = self.support_case_number
         return result
 
 
@@ -246,10 +361,8 @@ class ReplaceSpuInput:
 
     def __init__(
             self,
-            npod_uuid: str,
             previous_spu_serial: str,
             new_spu_info: NPodSpuInput,
-            sset_uuid: str
     ):
         """Constructs a new input object to replace a SPU
 
@@ -258,29 +371,15 @@ class ReplaceSpuInput:
         replacement unit and allows modifying the configuration during the
         process.
 
-        :param npod_uuid: The unique identifier of the nPod of the old SPU
-            that is being replaced
-        :type npod_uuid: str
         :param previous_spu_serial: The serial number of the old SPU that is
             being replaced
         :type previous_spu_serial: str
         :param new_spu_info: Configuration information for the new SPU
         :type new_spu_info: NPodSpuInput
-        :param sset_uuid: The storage set information for the existing SPU.
-            This information can be obtained from the active replacement
-            alert and only used to verify that the correct SPU is selected.
-        :type sset_uuid: str
         """
 
-        self.__npod_uuid = npod_uuid
         self.__previous_spu_serial = previous_spu_serial
         self.__new_spu_info = new_spu_info
-        self.__sset_uuid = sset_uuid
-
-    @property
-    def npod_uuid(self) -> str:
-        """The UUID of the nPod of the old SPU that is being replaced"""
-        return self.__npod_uuid
 
     @property
     def previous_spu_serial(self) -> str:
@@ -293,17 +392,10 @@ class ReplaceSpuInput:
         return self.__new_spu_info
 
     @property
-    def sset_uuid(self) -> str:
-        """The storage set information for the existing SPU"""
-        return self.__sset_uuid
-
-    @property
     def as_dict(self):
         result = dict()
-        result["nPodUUID"] = self.npod_uuid
         result["previousSPUSerial"] = self.previous_spu_serial
         result["newSPUInfo"] = self.new_spu_info
-        result["ssetUUID"] = self.sset_uuid
         return result
 
 
@@ -381,7 +473,7 @@ class NTPServer:
     ):
         """Constructs a new network time protocol server
 
-        This constructor expects a dict() object from the nebulon ON API. It
+        This constructor expects a ``dict`` object from the nebulon ON API. It
         will check the returned data against the currently implemented schema
         of the SDK.
 
@@ -431,7 +523,7 @@ class IPInfoState:
     ):
         """Constructs a new IPInfoState object
 
-        This constructor expects a dict() object from the nebulon ON API. It
+        This constructor expects a ``dict`` object from the nebulon ON API. It
         will check the returned data against the currently implemented schema
         of the SDK.
 
@@ -457,6 +549,8 @@ class IPInfoState:
             "bondLACPTransmitRate", response, BondLACPTransmitRate, False)
         self.__interface_names = read_value(
             "interfaceNames", response, str, True)
+        self.__display_interface_names = read_value(
+            "displayInterfaceNames", response, str, True)
         self.__interface_mac = read_value(
             "interfaceMAC", response, str, True)
         self.__half_duplex = read_value(
@@ -473,6 +567,8 @@ class IPInfoState:
             "switchMAC", response, str, True)
         self.__switch_port = read_value(
             "switchPort", response, str, True)
+        self.__link_active = read_value(
+            "linkActive", response, bool, True)
 
     @property
     def dhcp(self) -> bool:
@@ -515,6 +611,11 @@ class IPInfoState:
         return self.__interface_names
 
     @property
+    def display_interface_names(self) -> list:
+        """The human readable names of the physical interfaces for the logical interface"""
+        return self.__display_interface_names
+
+    @property
     def interface_mac(self) -> str:
         """The physical address of the interface"""
         return self.__interface_mac
@@ -554,6 +655,11 @@ class IPInfoState:
         """The port identifier of the switch this interface connects to"""
         return self.__switch_port
 
+    @property
+    def link_active(self) -> bool:
+        """Indicates if the interface has a link"""
+        return self.__link_active
+
     @staticmethod
     def fields():
         return [
@@ -573,6 +679,7 @@ class IPInfoState:
             "switchName",
             "switchMAC",
             "switchPort",
+            "linkActive"
         ]
 
 
@@ -585,7 +692,7 @@ class Spu:
     ):
         """Constructs a new services processing unit
 
-        This constructor expects a dict() object from the nebulon ON API. It
+        This constructor expects a ``dict`` object from the nebulon ON API. It
         will check the returned data against the currently implemented schema
         of the SDK.
 
@@ -603,6 +710,8 @@ class Spu:
             "serial", response, str, True)
         self.__version = read_value(
             "version", response, str, True)
+        self.__version_package_names = read_value(
+            "versionPackageNames", response, str, True)
         self.__spu_type = read_value(
             "spuType", response, str, True)
         self.__hw_revision = read_value(
@@ -611,12 +720,8 @@ class Spu:
             "controlInterface", response, IPInfoState, False)
         self.__data_interfaces = read_value(
             "dataInterfaces", response, IPInfoState, False)
-        self.__lun_uuids = read_value(
-            "luns.uuid", response, str, False)
         self.__lun_count = read_value(
             "lunCount", response, int, True)
-        self.__physical_drive_wwns = read_value(
-            "physicalDrives.wwn", response, str, False)
         self.__physical_drive_count = read_value(
             "physicalDriveCount", response, int, True)
         self.__npod_member_can_talk_count = read_value(
@@ -641,6 +746,8 @@ class Spu:
             "uefiVersion", response, str, True)
         self.__wiping = read_value(
             "wiping", response, bool, True)
+        self.__recovery_version = read_value(
+            "recoveryVersion", response, str, True)
 
     @property
     def npod_uuid(self) -> str:
@@ -663,6 +770,11 @@ class Spu:
         return self.__version
 
     @property
+    def version_package_names(self) -> [str]:
+        """List of package names installed on the SPU"""
+        return self.__version_package_names
+
+    @property
     def spu_type(self) -> str:
         """The type of SPU"""
         return self.__spu_type
@@ -683,19 +795,9 @@ class Spu:
         return self.__data_interfaces
 
     @property
-    def lun_uuids(self) -> [str]:
-        """List of unique identifiers of LUNs provisioned on the SPU"""
-        return self.__lun_uuids
-
-    @property
     def lun_count(self) -> int:
         """Number of provisioned LUNs on the SPU"""
         return self.__lun_count
-
-    @property
-    def physical_drive_wwns(self) -> [str]:
-        """List of WWNs for all physical drives attached to the SPU"""
-        return self.__physical_drive_wwns
 
     @property
     def physical_drive_count(self) -> int:
@@ -757,6 +859,11 @@ class Spu:
         """Indicates if the SPU is doing a secure wipe"""
         return self.__wiping
 
+    @property
+    def recovery_version(self) -> str:
+        """Recovery version configured for the SPU"""
+        return self.__recovery_version
+
     @staticmethod
     def fields():
         return [
@@ -764,13 +871,12 @@ class Spu:
             "host{uuid}",
             "serial",
             "version",
+            "versionPackageNames",
             "spuType",
             "hwRevision",
             "controlInterface{%s}" % ",".join(IPInfoState.fields()),
             "dataInterfaces{%s}" % ",".join(IPInfoState.fields()),
-            "luns{uuid}",
             "lunCount",
-            "physicalDrives{wwn}",
             "physicalDriveCount",
             "podMemberCanTalkCount",
             "uptimeSeconds",
@@ -782,7 +888,8 @@ class Spu:
             "ntpStatus",
             "timeZone",
             "uefiVersion",
-            "wiping"
+            "wiping",
+            "recoveryVersion"
         ]
 
 
@@ -790,7 +897,7 @@ class SpuList:
     """Paginated services processing unit (SPU) list
 
     Contains a list of SPU objects and information for
-    pagination. By default a single page includes a maximum of `100` items
+    pagination. By default a single page includes a maximum of ``100`` items
     unless specified otherwise in the paginated query.
 
     Consumers should always check for the property ``more`` as per default
@@ -803,7 +910,7 @@ class SpuList:
     ):
         """Constructs a new SPU list object
 
-        This constructor expects a dict() object from the nebulon ON API. It
+        This constructor expects a ``dict`` object from the nebulon ON API. It
         will check the returned data against the currently implemented schema
         of the SDK.
 
@@ -866,7 +973,7 @@ class SpuCustomDiagnostic:
     ):
         """Constructs a new SpuCustomDiagnostic object
 
-        This constructor expects a dict() object from the nebulon ON API. It
+        This constructor expects a ``dict`` object from the nebulon ON API. It
         will check the returned data against the currently implemented schema
         of the SDK.
 
@@ -935,7 +1042,7 @@ class SpuMixin(NebMixin):
 
         :param page: The requested page from the server. This is an optional
             argument and if omitted the server will default to returning the
-            first page with a maximum of `100` items.
+            first page with a maximum of ``100`` items.
         :type page: PageInput, optional
         :param spu_filter: A filter object to filter the SPUs on the
             server. If omitted, the server will return all objects as a
@@ -1034,7 +1141,7 @@ class SpuMixin(NebMixin):
 
         # make the request
         response = self._mutation(
-            name="claimSPU",
+            name="claimSPUV2",
             params=parameters,
             fields=TokenResponse.fields()
         )
@@ -1048,6 +1155,10 @@ class SpuMixin(NebMixin):
             spu_serial: str
     ) -> bool:
         """Allows deletion of SPU information in nebulon ON
+
+        This method is available for use during troubleshooting and may be used
+        during a support case. Nebulon recommends to only make use of this
+        method when instructed by support.
 
         :param spu_serial: The serial number of the SPU
         :type spu_serial: str
@@ -1078,8 +1189,10 @@ class SpuMixin(NebMixin):
         """Turns on the locate LED pattern of the SPU
 
         Allows identification of an SPU in the servers by turning on the
-        locate LED pattern for the SPU. Please consult the Cloud-Defined
-        Storage manual for the LED blink patterns.
+        locate LED pattern for the SPU. Please consult the nebulon
+        documentation for the LED blink patterns. This can also be used
+        to test the security triangle without impacting any configuration
+        or workloads.
 
         :param spu_serial: The serial number of the SPU
         :type spu_serial: str
@@ -1095,7 +1208,7 @@ class SpuMixin(NebMixin):
 
         # make the request
         response = self._mutation(
-            name="claimSPU",
+            name="pingSPUV2",
             params=parameters,
             fields=TokenResponse.fields()
         )
@@ -1104,20 +1217,19 @@ class SpuMixin(NebMixin):
         token_response = TokenResponse(response)
         token_response.deliver_token()
 
-    def send_spu_debug_info(
+    def collect_debug_info(
             self,
-            spu_serial: str,
-            note: str = None
+            debug_info_input: DebugInfoInput,
     ):
         """Allows submitting additional debugging information to nebulon ON
 
         Used for customers to send additional debug information to nebulon ON
         for troubleshooting and resolve issues.
 
-        :param spu_serial: The serial number of the SPU
-        :type spu_serial: str
-        :param note: An optional note to attach to the debug information
-        :type note: str, optional
+        :param debug_info_input: An input object to identify the needed information
+            for collecting debug information from either services processing units
+            or nPods.
+        :type debug_info_input: DebugInfoInput
 
         :raises GraphQLError: An error with the GraphQL endpoint.
         :raises Exception: An error when delivering a token to the SPU
@@ -1125,14 +1237,50 @@ class SpuMixin(NebMixin):
 
         # setup query parameters
         parameters = dict()
-        parameters["spuSerial"] = GraphQLParam(
-            spu_serial, "String", False)
-        parameters["note"] = GraphQLParam(
-            note, "String", False)
+        parameters["input"] = GraphQLParam(
+            debug_info_input, "DebugInfoInput", True)
 
         # make the request
         response = self._mutation(
-            name="sendDebugInfo",
+            name="collectDebugInfo",
+            params=parameters,
+            fields=TokenResponse.fields()
+        )
+
+        # convert to object
+        token_response = TokenResponse(response)
+        token_response.deliver_token()
+
+    def cancel_custom_diagnostics(
+            self,
+            request_uuid: str = None
+    ):
+        """Allows canceling custom diagnostic commands
+
+        SPU custom diagnostics requests allows customers to run arbitrary
+        diagnostic commands on the services processing units as part of
+        troubleshooting issues during a support case.
+
+        In some cases custom diagnostics may run for a longer period of
+        time. This method allows canceling active custom diagnostic
+        requests.
+
+        :param request_uuid: The unique identifier of the custom diagnostic
+            request to cancel
+        :type request_uuid: str, optional
+
+        :raises GraphQLError: An error with the GraphQL endpoint.
+        :raises Exception: An error when delivering a token to the SPU
+        """
+
+        # setup query parameters
+        parameters = dict()
+        parameters["requestUID"] = GraphQLParam(
+            request_uuid, "String", False)
+
+        # make the request
+        response = self._mutation(
+            name="cancelCustomDiagnostic",
             params=parameters,
             fields=TokenResponse.fields()
         )
@@ -1212,7 +1360,7 @@ class SpuMixin(NebMixin):
 
         # make the request
         response = self._mutation(
-            name="releaseSPU",
+            name="releaseSPUV2",
             params=parameters,
             fields=TokenResponse.fields()
         )
@@ -1244,7 +1392,7 @@ class SpuMixin(NebMixin):
 
         # make the request
         response = self._mutation(
-            name="setProxy",
+            name="setProxyV2",
             params=parameters,
             fields=TokenResponse.fields()
         )
@@ -1255,10 +1403,7 @@ class SpuMixin(NebMixin):
 
     def replace_spu(
             self,
-            npod_uuid: str,
-            previous_spu_serial: str,
-            new_spu_info: NPodSpuInput,
-            sset_uuid: str
+            replace_spu_input: ReplaceSpuInput
     ):
         """Allows replacing an SPU
 
@@ -1267,18 +1412,9 @@ class SpuMixin(NebMixin):
         replacement unit and allows modifying the configuration during the
         process.
 
-        :param npod_uuid: The unique identifier of the nPod of the old SPU
-            that is being replaced
-        :type npod_uuid: str
-        :param previous_spu_serial: The serial number of the old SPU that is
-            being replaced
-        :type previous_spu_serial: str
-        :param new_spu_info: Configuration information for the new SPU
-        :type new_spu_info: NPodSpuInput
-        :param sset_uuid: The storage set information for the existing SPU.
-            This information can be obtained from the active replacement
-            alert and only used to verify that the correct SPU is selected.
-        :type sset_uuid: str
+        :param replace_spu_input: An input object describing the parameters
+            for SPU replacement
+        :type replace_spu_input: ReplaceSpuInput
 
         :raises GraphQLError: An error with the GraphQL endpoint.
         :raises Exception: An error when delivering a token to the SPU
@@ -1287,12 +1423,7 @@ class SpuMixin(NebMixin):
         # setup query parameters
         parameters = dict()
         parameters["input"] = GraphQLParam(
-            ReplaceSpuInput(
-                npod_uuid=npod_uuid,
-                previous_spu_serial=previous_spu_serial,
-                new_spu_info=new_spu_info,
-                sset_uuid=sset_uuid
-            ),
+            replace_spu_input,
             "ReplaceSPUInput",
             True
         )
@@ -1324,7 +1455,6 @@ class SpuMixin(NebMixin):
         :raises GraphQLError: An error with the GraphQL endpoint.
         :raises Exception: An error when delivering a token to the SPU
         """
-
         # setup query parameters
         parameters = dict()
         parameters["spuSerial"] = GraphQLParam(
@@ -1410,7 +1540,7 @@ class SpuMixin(NebMixin):
 
         # make the request
         response = self._mutation(
-            name="secureEraseSPU",
+            name="secureEraseSPUV2",
             params=parameters,
             fields=TokenResponse.fields()
         )

@@ -1,5 +1,5 @@
 #
-# Copyright 2020 Nebulon, Inc.
+# Copyright 2021 Nebulon, Inc.
 # All Rights Reserved.
 #
 # DISCLAIMER: THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND,
@@ -28,7 +28,7 @@ class KeyValueFilter:
     def __init__(
             self,
             resource_type: ResourceType,
-            npod_group_uuid: str,
+            npod_uuid: str,
             resource_uuid: str,
             key: StringFilter = None
     ):
@@ -36,15 +36,15 @@ class KeyValueFilter:
 
         :param resource_type: Filter based on the associated resource type
         :type resource_type: ResourceType
-        :param npod_group_uuid: Filter based on the associated nPod group
-        :type npod_group_uuid: str
+        :param npod_uuid: Filter based on the associated nPod UUID
+        :type npod_uuid: str
         :param resource_uuid: Filter based on the associated resource UUID
         :type resource_uuid: str
         :param key: Filter based on the key name
-        :type key: StringFilter
+        :type key: StringFilter, optional
         """
         self.__resource_type = resource_type
-        self.__npod_group_uuid = npod_group_uuid
+        self.__npod_uuid = npod_uuid
         self.__resource_uuid = resource_uuid
         self.__key = key
 
@@ -54,9 +54,9 @@ class KeyValueFilter:
         return self.__resource_type
 
     @property
-    def npod_group_uuid(self) -> str:
-        """Filter based on the associated nPod group"""
-        return self.__npod_group_uuid
+    def npod_uuid(self) -> str:
+        """Filter based on the associated nPod UUID"""
+        return self.__npod_uuid
 
     @property
     def resource_uuid(self) -> str:
@@ -72,7 +72,7 @@ class KeyValueFilter:
     def as_dict(self):
         result = dict()
         result["resourceType"] = self.resource_type
-        result["nPodGroupUUID"] = self.npod_group_uuid
+        result["nPodUUID"] = self.npod_uuid
         result["resourceUUID"] = self.resource_uuid
         result["keyName"] = self.key
         return result
@@ -90,7 +90,7 @@ class UpsertKeyValueInput:
     def __init__(
             self,
             resource_type: ResourceType,
-            npod_group_uuid: str,
+            npod_uuid: str,
             resource_uuid: str,
             key: str,
             value: str
@@ -99,8 +99,8 @@ class UpsertKeyValueInput:
 
         :param resource_type: Type of resource for the key value data
         :type resource_type: ResourceType
-        :param npod_group_uuid: nPod Group identifier.
-        :type npod_group_uuid: str
+        :param npod_uuid: nPod identifier.
+        :type npod_uuid: str
         :param resource_uuid: Identifier of the resource for the key value entry
         :type resource_uuid: str
         :param key: Metadata key
@@ -110,7 +110,7 @@ class UpsertKeyValueInput:
         """
 
         self.__resource_type = resource_type
-        self.__npod_group_uuid = npod_group_uuid
+        self.__npod_uuid = npod_uuid
         self.__resource_uuid = resource_uuid
         self.__key = key
         self.__value = value
@@ -121,9 +121,9 @@ class UpsertKeyValueInput:
         return self.__resource_type
 
     @property
-    def npod_group_uuid(self) -> str:
-        """nPod Group identifier"""
-        return self.__npod_group_uuid
+    def npod_uuid(self) -> str:
+        """nPod identifier"""
+        return self.__npod_uuid
 
     @property
     def resource_uuid(self) -> str:
@@ -144,7 +144,7 @@ class UpsertKeyValueInput:
     def as_dict(self):
         result = dict()
         result["resourceType"] = self.resource_type
-        result["nPodGroupUUID"] = self.npod_group_uuid
+        result["nPodUUID"] = self.npod_uuid
         result["resourceUUID"] = self.resource_uuid
         result["key"] = self.key
         result["value"] = self.value
@@ -157,7 +157,7 @@ class DeleteKeyValueInput:
     def __init__(
             self,
             resource_type: ResourceType,
-            npod_group_uuid: str,
+            npod_uuid: str,
             resource_uuid: str,
             key: str
     ):
@@ -165,15 +165,15 @@ class DeleteKeyValueInput:
 
         :param resource_type: Type of resource for the key value data
         :type resource_type: ResourceType
-        :param npod_group_uuid: nPod Group identifier
-        :type npod_group_uuid: str
+        :param npod_uuid: nPod identifier
+        :type npod_uuid: str
         :param resource_uuid: Identifier of the resource for the key value entry
         :type resource_uuid: str
         :param key: Metadata key
         :type key: str
         """
         self.__resource_type = resource_type
-        self.__npod_group_uuid = npod_group_uuid
+        self.__npod_uuid = npod_uuid
         self.__resource_uuid = resource_uuid
         self.__key = key
 
@@ -183,9 +183,9 @@ class DeleteKeyValueInput:
         return self.__resource_type
 
     @property
-    def npod_group_uuid(self) -> str:
-        """nPod Group identifier"""
-        return self.__npod_group_uuid
+    def npod_uuid(self) -> str:
+        """nPod identifier"""
+        return self.__npod_uuid
 
     @property
     def resource_uuid(self) -> str:
@@ -201,7 +201,7 @@ class DeleteKeyValueInput:
     def as_dict(self):
         result = dict()
         result["resourceType"] = self.resource_type
-        result["nPodGroupUUID"] = self.npod_group_uuid
+        result["nPodUUID"] = self.npod_uuid
         result["resourceUUID"] = self.resource_uuid
         result["key"] = self.key
         return result
@@ -222,7 +222,7 @@ class KeyValue:
     ):
         """Constructs a new key value object
 
-        This constructor expects a dict() object from the nebulon ON API. It
+        This constructor expects a ``dict`` object from the nebulon ON API. It
         will check the returned data against the currently implemented schema
         of the SDK.
 
@@ -264,7 +264,7 @@ class KeyValueList:
     ):
         """Constructs a new key value list object
 
-        This constructor expects a dict() object from the nebulon ON API. It
+        This constructor expects a ``dict`` object from the nebulon ON API. It
         will check the returned data against the currently implemented schema
         of the SDK.
 
@@ -283,7 +283,7 @@ class KeyValueList:
 
     @property
     def items(self) -> [KeyValue]:
-        """List of key-value objects in the pagination list"""
+        """List of key-value objects in the list"""
         return self.__items
 
     @property
@@ -310,14 +310,13 @@ class KeyValueMixin(NebMixin):
 
     def get_key_values(
             self,
-            kv_filter: KeyValueFilter
+            key_value_filter: KeyValueFilter
     ) -> KeyValueList:
         """Retrieves a list of key value objects
 
-        :param kv_filter: A filter object to filter key value objects on the
-            server. If omitted, the server will return all objects as a
-            paginated response.
-        :type kv_filter: KeyValueFilter
+        :param key_value_filter: A filter object to filter key value objects on
+            the server.
+        :type key_value_filter: KeyValueFilter
 
         :returns KeyValueList: A list of key value objects.
 
@@ -326,7 +325,11 @@ class KeyValueMixin(NebMixin):
 
         # setup query parameters
         parameters = dict()
-        parameters["filter"] = GraphQLParam(kv_filter, "KeyValueFilter", True)
+        parameters["filter"] = GraphQLParam(
+            key_value_filter,
+            "KeyValueFilter",
+            True
+        )
 
         # make the request
         response = self._query(
@@ -340,11 +343,7 @@ class KeyValueMixin(NebMixin):
 
     def set_key_value(
             self,
-            resource_type: ResourceType,
-            npod_group_uuid: str,
-            resource_uuid: str,
-            key: str,
-            value: str
+            upsert_key_value_input: UpsertKeyValueInput
     ) -> bool:
         """Set a key value entry for a resource
 
@@ -353,16 +352,9 @@ class KeyValueMixin(NebMixin):
         text information to resources that are not part of the default resource
         properties.
 
-        :param resource_type: Type of resource for the key value data
-        :type resource_type: ResourceType
-        :param npod_group_uuid: nPod Group identifier.
-        :type npod_group_uuid: str
-        :param resource_uuid: Identifier of the resource for the key value entry
-        :type resource_uuid: str
-        :param key: Metadata key
-        :type key: str
-        :param value: Metadata value
-        :type value: str
+        :param upsert_key_value_input: Input parameters to create a new
+            key/value pair of update an existing one.
+        :type upsert_key_value_input: UpsertKeyValueInput
 
         :returns bool: Indicator if the query was successful.
 
@@ -372,13 +364,7 @@ class KeyValueMixin(NebMixin):
         # setup query parameters
         parameters = dict()
         parameters["input"] = GraphQLParam(
-            UpsertKeyValueInput(
-                resource_type=resource_type,
-                npod_group_uuid=npod_group_uuid,
-                resource_uuid=resource_uuid,
-                key=key,
-                value=value
-            ),
+            upsert_key_value_input,
             "UpsertKeyValueInput",
             True
         )
@@ -395,21 +381,13 @@ class KeyValueMixin(NebMixin):
 
     def delete_key_value(
             self,
-            resource_type: ResourceType,
-            npod_group_uuid: str,
-            resource_uuid: str,
-            key: str
+            delete_key_value_input: DeleteKeyValueInput
     ) -> bool:
         """Remove a key value entry from a resource
 
-        :param resource_type: Type of resource for the key value data
-        :type resource_type: ResourceType
-        :param npod_group_uuid: nPod Group identifier
-        :type npod_group_uuid: str
-        :param resource_uuid: Identifier of the resource for the key value entry
-        :type resource_uuid: str
-        :param key: Metadata key
-        :type key: str
+        :param delete_key_value_input: Input parameter that identifies which
+            key/value pair to delete
+        :type delete_key_value_input: DeleteKeyValueInput
 
         :returns bool: Indicator if the query was successful.
 
@@ -419,12 +397,7 @@ class KeyValueMixin(NebMixin):
         # setup query parameters
         parameters = dict()
         parameters["input"] = GraphQLParam(
-            DeleteKeyValueInput(
-                resource_type=resource_type,
-                npod_group_uuid=npod_group_uuid,
-                resource_uuid=resource_uuid,
-                key=key
-            ),
+            delete_key_value_input,
             "DeleteKeyValueInput",
             True
         )

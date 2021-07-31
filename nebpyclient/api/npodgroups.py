@@ -1,5 +1,5 @@
 #
-# Copyright 2020 Nebulon, Inc.
+# Copyright 2021 Nebulon, Inc.
 # All Rights Reserved.
 #
 # DISCLAIMER: THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND,
@@ -13,7 +13,7 @@
 
 from .graphqlclient import GraphQLParam, NebMixin
 from .common import PageInput, read_value
-from .filters import StringFilter, UuidFilter
+from .filters import StringFilter, UUIDFilter
 from .sorting import SortDirection
 
 __all__ = [
@@ -68,7 +68,7 @@ class NPodGroupFilter:
 
     def __init__(
             self,
-            uuid: UuidFilter = None,
+            uuid: UUIDFilter = None,
             name: StringFilter = None,
             and_filter=None,
             or_filter=None
@@ -80,7 +80,7 @@ class NPodGroupFilter:
         options to concatenate multiple filters.
 
         :param uuid: Filter based on nPod group unique identifier
-        :type uuid: UuidFilter, optional
+        :type uuid: UUIDFilter, optional
         :param name: Filter based on nPod group name
         :type name: StringFilter, optional
         :param and_filter: Concatenate another filter with a logical AND
@@ -94,7 +94,7 @@ class NPodGroupFilter:
         self.__or = or_filter
 
     @property
-    def uuid(self) -> UuidFilter:
+    def uuid(self) -> UUIDFilter:
         """Filter based on nPod group unique identifier"""
         return self.__uuid
 
@@ -133,7 +133,7 @@ class UpdateNPodGroupInput:
 
     def __init__(
             self,
-            name: str,
+            name: str = None,
             note: str = None
     ):
         """Construct a new input object to update nPod groups
@@ -143,7 +143,7 @@ class UpdateNPodGroupInput:
         group can receive custom security policies.
 
         :param name: The new name of the nPod group
-        :type name: str
+        :type name: str, optional
         :param note: The new note for the nPod group. For removing the note,
             provide an empty str.
         :type note: str, optional
@@ -191,8 +191,7 @@ class CreateNPodGroupInput:
 
         :param name: The name of the new nPod group
         :type name: str
-        :param note: The note for the new nPod group. For removing the note,
-            provide an empty str.
+        :param note: The optional note for the new nPod group.
         :type note: str, optional
         """
 
@@ -230,7 +229,7 @@ class NPodGroup:
     ):
         """Constructs a new nPod group
 
-        This constructor expects a dict() object from the nebulon ON API. It
+        This constructor expects a ``dict`` object from the nebulon ON API. It
         will check the returned data against the currently implemented schema
         of the SDK.
 
@@ -307,7 +306,7 @@ class NPodGroupList:
     """Paginated nPod group list object
 
     Contains a list of nPod group objects and information for
-    pagination. By default a single page includes a maximum of `100` items
+    pagination. By default a single page includes a maximum of ``100`` items
     unless specified otherwise in the paginated query.
 
     Consumers should always check for the property ``more`` as per default
@@ -320,7 +319,7 @@ class NPodGroupList:
     ):
         """Constructs a new nPod group list object
 
-        This constructor expects a dict() object from the nebulon ON API. It
+        This constructor expects a ``dict`` object from the nebulon ON API. It
         will check the returned data against the currently implemented schema
         of the SDK.
 
@@ -330,11 +329,11 @@ class NPodGroupList:
         :raises ValueError: An error if illegal data is returned from the server
         """
         self.__more = read_value(
-            "more", response, bool, False)
+            "more", response, bool, True)
         self.__total_count = read_value(
-            "totalCount", response, int, False)
+            "totalCount", response, int, True)
         self.__filtered_count = read_value(
-            "filteredCount", response, int, False)
+            "filteredCount", response, int, True)
         self.__items = read_value(
             "items", response, NPodGroup, True)
 
@@ -381,7 +380,7 @@ class NPodGroupMixin(NebMixin):
 
         :param page: The requested page from the server. This is an optional
             argument and if omitted the server will default to returning the
-            first page with a maximum of `100` items.
+            first page with a maximum of ``100`` items.
         :type page: PageInput, optional
         :param npod_group_filter: A filter object to filter the items on the
             server. If omitted, the server will return all objects as a
@@ -418,8 +417,7 @@ class NPodGroupMixin(NebMixin):
 
     def create_npod_group(
             self,
-            name: str,
-            note: str = None
+            create_npod_group_input: CreateNPodGroupInput
     ) -> NPodGroup:
         """Allows creation of a new nPod group object
 
@@ -427,11 +425,9 @@ class NPodGroupMixin(NebMixin):
         group allows logical grouping of nPods into security domains. Each nPod
         group can receive custom security policies.
 
-        :param name: The name of the new nPod group
-        :type name: str
-        :param note: The note for the new nPod group. For removing the note,
-            provide an empty str.
-        :type note: str, optional
+        :param create_npod_group_input: Input parameter that describes the new
+            nPod group
+        :type create_npod_group_input: CreateNPodGroupInput
 
         :returns NPodGroup: The new nPod group.
 
@@ -441,10 +437,7 @@ class NPodGroupMixin(NebMixin):
         # setup query parameters
         parameters = dict()
         parameters["input"] = GraphQLParam(
-            CreateNPodGroupInput(
-                name=name,
-                note=note,
-            ),
+            create_npod_group_input,
             "CreateNPodGroupInput",
             True
         )
@@ -459,45 +452,11 @@ class NPodGroupMixin(NebMixin):
         # convert to object
         return NPodGroup(response)
 
-    def get_npod_group_count(
-            self,
-            npod_group_filter: NPodGroupFilter = None
-    ) -> int:
-        """Retrieves the number of nPod groups matching the filter
-
-        :param npod_group_filter: A filter object to filter the items on the
-            server. If omitted, all items are counted on the server
-        :type npod_group_filter: NPodGroupFilter, optional
-
-        :returns int: The number of nPod groups matching the filter.
-
-        :raises GraphQLError: An error with the GraphQL endpoint.
-        """
-
-        # setup query parameters
-        parameters = dict()
-        parameters["filter"] = GraphQLParam(
-            npod_group_filter,
-            "NPodGroupFilter",
-            False
-        )
-
-        # make the request
-        response = self._query(
-            name="getNPodGroupCount",
-            params=parameters,
-            fields=None
-        )
-
-        # convert to object
-        return response
-
     def update_npod_group(
             self,
             uuid: str,
-            name: str = None,
-            note: str = None
-    ):
+            update_npod_group_input: UpdateNPodGroupInput
+    ) -> NPodGroup:
         """Allows updating new nPod group object properties
 
         Allows updating of an existing nPod group object in nebulon ON. A nPod
@@ -506,13 +465,11 @@ class NPodGroupMixin(NebMixin):
 
         :param uuid: The unique identifier of the nPod group to update
         :type uuid: str
-        :param name: The name of the new nPod group
-        :type name: str
-        :param note: The note for the new nPod group. For removing the note,
-            provide an empty str.
-        :type note: str, optional
+        :param update_npod_group_input: Input parameter that describes the
+            changes that shall be made to the nPod group
+        :type update_npod_group_input: UpdateNPodGroupInput
 
-        :returns NPodGroup: The new nPod group.
+        :returns NPodGroup: The updated nPod group.
 
         :raises GraphQLError: An error with the GraphQL endpoint.
         """
@@ -521,10 +478,7 @@ class NPodGroupMixin(NebMixin):
         parameters = dict()
         parameters["uuid"] = GraphQLParam(uuid, "UUID", True)
         parameters["input"] = GraphQLParam(
-            UpdateNPodGroupInput(
-                name=name,
-                note=note
-            ),
+            update_npod_group_input,
             "UpdateNPodGroupInput",
             True
         )
@@ -542,13 +496,13 @@ class NPodGroupMixin(NebMixin):
     def delete_npod_group(
             self,
             uuid: str
-    ):
+    ) -> bool:
         """Allows deleting a nPod group object
 
         :param uuid: The unique identifier of the nPod group to delete
         :type uuid: str
 
-        :returns NPodGroup: The new nPod group.
+        :returns bool: If the request was successful
 
         :raises GraphQLError: An error with the GraphQL endpoint.
         """

@@ -1,5 +1,5 @@
 #
-# Copyright 2020 Nebulon, Inc.
+# Copyright 2021 Nebulon, Inc.
 # All Rights Reserved.
 #
 # DISCLAIMER: THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND,
@@ -29,7 +29,7 @@ class NebPyClient(
     DatacentersMixin,
     HostsMixin,
     KeyValueMixin,
-    LunsMixin,
+    LUNsMixin,
     NPodGroupMixin,
     NPodsMixin,
     NPodTemplateMixin,
@@ -57,6 +57,7 @@ class NebPyClient(
             username: str,
             password: str,
             verbose: bool = False,
+            log_file: str = None,
             client_name: str = None,
             client_version: str = None):
         """Constructs Nebulon Python client instance to interact with Nebulon ON
@@ -69,6 +70,9 @@ class NebPyClient(
             information to the console when interacting with nebulon ON. By
             default this option is turned off.
         :type verbose: bool, optional
+        :param log_file: If provided, the SDK will print log information to
+            the file instead of the console.
+        :type log_file: str
         :param client_name: Allows setting the client application name which is
             used by the audit log as the client. Default value is `nebpyclient`.
         :type client_name: str, optional
@@ -84,6 +88,7 @@ class NebPyClient(
         GraphQLClient.__init__(
             self,
             verbose=verbose,
+            log_file=log_file,
             client_name=client_name,
             client_version=client_version,
         )

@@ -1,5 +1,5 @@
 #
-# Copyright 2020 Nebulon, Inc.
+# Copyright 2021 Nebulon, Inc.
 # All Rights Reserved.
 #
 # DISCLAIMER: THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND,
@@ -13,7 +13,7 @@
 
 from .graphqlclient import GraphQLParam, NebMixin
 from .common import PageInput, read_value
-from .filters import UuidFilter, StringFilter
+from .filters import UUIDFilter, StringFilter
 from .sorting import SortDirection
 
 
@@ -59,8 +59,8 @@ class RoomFilter:
 
     def __init__(
             self,
-            uuid: UuidFilter = None,
-            datacenter_uuid: UuidFilter = None,
+            uuid: UUIDFilter = None,
+            datacenter_uuid: UUIDFilter = None,
             name: StringFilter = None,
             and_filter=None,
             or_filter=None
@@ -72,9 +72,9 @@ class RoomFilter:
         options to concatenate multiple filters.
 
         :param uuid: Filter based on datacenter room unique identifiers
-        :type uuid: UuidFilter, optional
+        :type uuid: UUIDFilter, optional
         :param datacenter_uuid: Filter based on datacenter unique identifiers
-        :type datacenter_uuid: UuidFilter, optional
+        :type datacenter_uuid: UUIDFilter, optional
         :param name: Filter based on datacenter room name
         :type name: StringFilter, optional
         :param and_filter: Concatenate another filter with a logical AND
@@ -90,12 +90,12 @@ class RoomFilter:
         self.__or = or_filter
 
     @property
-    def uuid(self) -> UuidFilter:
+    def uuid(self) -> UUIDFilter:
         """Filter based on datacenter room unique identifier"""
         return self.__uuid
 
     @property
-    def datacenter_uuid(self) -> UuidFilter:
+    def datacenter_uuid(self) -> UUIDFilter:
         """Filter based on datacenter unique identifier"""
         return self.__datacenter_uuid
 
@@ -197,6 +197,7 @@ class UpdateRoomInput:
 
     def __init__(
             self,
+            datacenter_uuid: str = None,
             name: str = None,
             note: str = None,
             location: str = None
@@ -205,6 +206,8 @@ class UpdateRoomInput:
 
         At least one property must be specified.
 
+        :param datacenter_uuid: Unique identifier for the parent datacenter
+        :type datacenter_uuid: str, optional
         :param name: New name for the datacenter room
         :type name: str, optional
         :param note: The new note for the datacenter room. For removing the
@@ -214,9 +217,15 @@ class UpdateRoomInput:
         :type location: str, optional
         """
 
+        self.__datacenter_uuid = datacenter_uuid
         self.__name = name
         self.__note = note
         self.__location = location
+
+    @property
+    def datacenter_uuid(self) -> str:
+        """Unique identifier for the parent datacenter"""
+        return self.__datacenter_uuid
 
     @property
     def name(self) -> str:
@@ -288,7 +297,7 @@ class Room:
     ):
         """Constructs a new datacenter room object
 
-        This constructor expects a dict() object from the nebulon ON API. It
+        This constructor expects a ``dict`` object from the nebulon ON API. It
         will check the returned data against the currently implemented schema
         of the SDK.
 
@@ -381,7 +390,7 @@ class RoomList:
     """Paginated datacenter room list object
 
     Contains a list of datacenter room objects and information for
-    pagination. By default a single page includes a maximum of `100` items
+    pagination. By default a single page includes a maximum of ``100`` items
     unless specified otherwise in the paginated query.
 
     Consumers should always check for the property ``more`` as per default
@@ -394,7 +403,7 @@ class RoomList:
     ):
         """Constructs a new datacenter room list object
 
-        This constructor expects a dict() object from the nebulon ON API. It
+        This constructor expects a ``dict`` object from the nebulon ON API. It
         will check the returned data against the currently implemented schema
         of the SDK.
 
@@ -456,7 +465,7 @@ class RoomsMixin(NebMixin):
 
         :param page: The requested page from the server. This is an optional
             argument and if omitted the server will default to returning the
-            first page with a maximum of `100` items.
+            first page with a maximum of ``100`` items.
         :type page: PageInput, optional
         :param room_filter: A filter object to filter the datacenter rooms on
             the server. If omitted, the server will return all objects as a
@@ -493,24 +502,15 @@ class RoomsMixin(NebMixin):
 
     def create_room(
             self,
-            datacenter_uuid: str,
-            name: str,
-            note: str = None,
-            location: str = None
+            create_room_input: CreateRoomInput
     ) -> Room:
         """Allows creation of a new datacenter room object
 
         A datacenter room record allows customers to logically organize their
         infrastructure by physical location.
 
-        :param datacenter_uuid: Unique identifier for the parent datacenter
-        :type datacenter_uuid: str
-        :param name: Name for the new datacenter room
-        :type name: str
-        :param note: An optional note for the new datacenter room
-        :type note: str, optional
-        :param location: An optional location for the new datacenter room
-        :type location: str, optional
+        :param create_room_input: A parameter that describes the room to create
+        :type create_room_input: CreateRoomInput
 
         :returns Room: The new datacenter room.
 
@@ -520,19 +520,14 @@ class RoomsMixin(NebMixin):
         # setup query parameters
         parameters = dict()
         parameters["input"] = GraphQLParam(
-            CreateRoomInput(
-                datacenter_uuid=datacenter_uuid,
-                name=name,
-                note=note,
-                location=location
-            ),
+            create_room_input,
             "CreateLabInput",
             True
         )
 
         # make the request
         response = self._mutation(
-            name="createLab",
+            name="createRoom",
             params=parameters,
             fields=Room.fields()
         )
@@ -543,22 +538,21 @@ class RoomsMixin(NebMixin):
     def delete_room(
             self,
             uuid: str,
-            cascade: bool = False
+            delete_room_input: DeleteRoomInput
     ) -> bool:
         """Allows deletion of an existing datacenter room object
 
         The deletion of a datacenter room is only possible if the room
         has no hosts (servers) associated with any child items. By default,
         deletion of a datacenter room is only allowed when it is not
-        referenced by any rows or if the ``cascade`` parameter is set to ``True``.
+        referenced by any rows or if the ``cascade`` parameter of the
+        ``delete_room_input`` is set to ``True``.
 
         :param uuid: The unique identifier of the datacenter room to delete
         :type uuid: str
-        :param cascade: If set to True any child items of the datacenter room
-            (row, rack) will automatically deleted with this request. If set
-            to False or omitted and the datacenter room has child objects, the
-            deletion will fail with an error.
-        :type cascade: bool, optional
+        :param delete_room_input: A parameter that allows configuration of the
+            delete operation
+        :type delete_room_input: DeleteRoomInput, optional
 
         :returns bool: If the query was successful
 
@@ -569,16 +563,14 @@ class RoomsMixin(NebMixin):
         parameters = dict()
         parameters["uuid"] = GraphQLParam(uuid, "UUID", True)
         parameters["input"] = GraphQLParam(
-            DeleteRoomInput(
-                cascade=cascade
-            ),
+            delete_room_input,
             "DeleteLabInput",
             False
         )
 
         # make the request
         response = self._mutation(
-            name="deleteLab",
+            name="deleteRoom",
             params=parameters,
             fields=None
         )
@@ -589,9 +581,7 @@ class RoomsMixin(NebMixin):
     def update_room(
             self,
             uuid: str,
-            name: str = None,
-            note: str = None,
-            location: str = None
+            update_room_input: UpdateRoomInput
     ) -> Room:
         """Allows updating properties of an existing datacenter room object
 
@@ -599,13 +589,10 @@ class RoomsMixin(NebMixin):
 
         :param uuid: The unique identifier of the datacenter room to update
         :type uuid: str
-        :param name: New name for the datacenter room
-        :type name: str, optional
-        :param note: The new note for the datacenter room. For removing the
-            note, provide an empty str.
-        :type note: str, optional
-        :param location: A new optional location for the new datacenter room
-        :type location: str, optional
+        :param update_room_input: An input parameter that describes the changes
+            to make to the datacenter room
+        :type update_room_input: UpdateRoomInput
+
 
         :returns Room: The updated datacenter room object.
 
@@ -616,11 +603,7 @@ class RoomsMixin(NebMixin):
         parameters = dict()
         parameters["uuid"] = GraphQLParam(uuid, "UUID", True)
         parameters["input"] = GraphQLParam(
-            UpdateRoomInput(
-                name=name,
-                note=note,
-                location=location
-            ),
+            update_room_input,
             "UpdateLabInput",
             True
         )

@@ -1,5 +1,5 @@
 #
-# Copyright 2020 Nebulon, Inc.
+# Copyright 2021 Nebulon, Inc.
 # All Rights Reserved.
 #
 # DISCLAIMER: THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND,
@@ -24,10 +24,16 @@ SPHINXDST   = build
 .PHONY: pip clean html publish
 
 help:
-	@echo "make [html|pip|publish|clean]"
+	@echo "make [html|pip|publish|clean|docs]"
 
 html: clean
 	$(SPHINXBUILD) -b html "$(SPHINXSRC)" "$(SPHINXDST)/html" $(SPHINXOPTS)
+
+xml: clean
+	$(SPHINXBUILD) -b xml "$(SPHINXSRC)" "$(SPHINXDST)/html" $(SPHINXOPTS)
+
+docs: clean
+	python3 ./scripts/build_docs.py docs
 
 pip: clean
 	python3 setup.py sdist bdist_wheel
@@ -41,4 +47,5 @@ clean:
 	rm -rf build
 	rm -rf dist
 	rm -rf nebpyclient.egg-info
+	rm -rf docs/types
 

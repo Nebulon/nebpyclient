@@ -1,5 +1,5 @@
 #
-# Copyright 2020 Nebulon, Inc.
+# Copyright 2021 Nebulon, Inc.
 # All Rights Reserved.
 #
 # DISCLAIMER: THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND,
@@ -21,4 +21,7 @@ class SortDirection(NebEnum):
     """Defines sorting direction"""
 
     Ascending = "Ascending"
+    """Sort items in ascending order"""
+
     Descending = "Descending"
+    """Sort items in descending order"""

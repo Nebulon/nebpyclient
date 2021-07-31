@@ -1,5 +1,5 @@
 #
-# Copyright 2020 Nebulon, Inc.
+# Copyright 2021 Nebulon, Inc.
 # All Rights Reserved.
 #
 # DISCLAIMER: THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND,
@@ -13,7 +13,7 @@
 
 from .graphqlclient import GraphQLParam, NebMixin
 from .common import PageInput, read_value
-from .filters import UuidFilter, StringFilter
+from .filters import UUIDFilter, StringFilter
 from .sorting import SortDirection
 
 __all__ = [
@@ -69,9 +69,9 @@ class RowFilter:
 
     def __init__(
             self,
-            uuid: UuidFilter = None,
+            uuid: UUIDFilter = None,
             name: StringFilter = None,
-            room_uuid: UuidFilter = None,
+            room_uuid: UUIDFilter = None,
             location: StringFilter = None,
             and_filter=None,
             or_filter=None
@@ -83,11 +83,11 @@ class RowFilter:
         options to concatenate multiple filters.
 
         :param uuid: Filter based on row unique identifiers
-        :type uuid: UuidFilter, optional
+        :type uuid: UUIDFilter, optional
         :param name: Filter based on row name
         :type name: StringFilter, optional
         :param room_uuid: Filter based on the row's room unique identifier
-        :type room_uuid: UuidFilter, optional
+        :type room_uuid: UUIDFilter, optional
         :param location: Filter based on the row's location
         :type location: StringFilter, optional
         :param and_filter: Concatenate another filter with a logical AND
@@ -104,7 +104,7 @@ class RowFilter:
         self.__or = or_filter
 
     @property
-    def uuid(self) -> UuidFilter:
+    def uuid(self) -> UUIDFilter:
         """Filter based on row unique identifier"""
         return self.__uuid
 
@@ -114,7 +114,7 @@ class RowFilter:
         return self.__name
 
     @property
-    def room_uuid(self) -> UuidFilter:
+    def room_uuid(self) -> UUIDFilter:
         """Filter based on the room's row unique identifier"""
         return self.__room_uuid
 
@@ -137,7 +137,7 @@ class RowFilter:
     def as_dict(self):
         result = dict()
         result["uuid"] = self.uuid
-        result["labUUID"] = self.room_uuid
+        result["roomUUID"] = self.room_uuid
         result["name"] = self.name
         result["location"] = self.location
         result["and"] = self.and_filter
@@ -204,7 +204,7 @@ class CreateRowInput:
     @property
     def as_dict(self):
         result = dict()
-        result["labUUID"] = self.room_uuid
+        result["roomUUID"] = self.room_uuid
         result["name"] = self.name
         result["note"] = self.note
         result["location"] = self.location
@@ -269,7 +269,7 @@ class UpdateRowInput:
     @property
     def as_dict(self):
         result = dict()
-        result["labUUID"] = self.room_uuid
+        result["roomUUID"] = self.room_uuid
         result["name"] = self.name
         result["note"] = self.note
         result["location"] = self.location
@@ -322,7 +322,7 @@ class Row:
     ):
         """Constructs a new row object
 
-        This constructor expects a dict() object from the nebulon ON API. It
+        This constructor expects a ``dict`` object from the nebulon ON API. It
         will check the returned data against the currently implemented schema
         of the SDK.
 
@@ -340,7 +340,7 @@ class Row:
         self.__location = read_value(
             "location", response, str, True)
         self.__room_uuid = read_value(
-            "lab.uuid", response, str, False)
+            "room.uuid", response, str, False)
         self.__rack_uuids = read_value(
             "racks.uuid", response, str, False)
         self.__rack_count = read_value(
@@ -395,7 +395,7 @@ class Row:
             "uuid",
             "note",
             "location",
-            "lab{uuid}",
+            "room{uuid}",
             "racks{uuid}",
             "rackCount",
             "hostCount",
@@ -406,7 +406,7 @@ class RowList:
     """Paginated row list object
 
     Contains a list of row objects and information for
-    pagination. By default a single page includes a maximum of `100` items
+    pagination. By default a single page includes a maximum of ``100`` items
     unless specified otherwise in the paginated query.
 
     Consumers should always check for the property ``more`` as per default
@@ -419,7 +419,7 @@ class RowList:
     ):
         """Constructs a new row list object
 
-        This constructor expects a dict() object from the nebulon ON API. It
+        This constructor expects a ``dict`` object from the nebulon ON API. It
         will check the returned data against the currently implemented schema
         of the SDK.
 
@@ -480,7 +480,7 @@ class RowMixin(NebMixin):
 
         :param page: The requested page from the server. This is an optional
             argument and if omitted the server will default to returning the
-            first page with a maximum of `100` items.
+            first page with a maximum of ``100`` items.
         :type page: PageInput, optional
         :param row_filter: A filter object to filter the row on
             the server. If omitted, the server will return all objects as a
@@ -517,10 +517,7 @@ class RowMixin(NebMixin):
 
     def create_row(
             self,
-            name: str,
-            room_uuid: str,
-            note: str = None,
-            location: str = None
+            create_row_input: CreateRowInput
     ) -> Row:
         """Allows creation of a new datacenter room object
 
@@ -528,14 +525,9 @@ class RowMixin(NebMixin):
         rack record allows customers to logically organize their
         infrastructure by physical location.
 
-        :param room_uuid: Unique identifier for the parent room
-        :type room_uuid: str
-        :param name: Name for the new row
-        :type name: str
-        :param note: An optional note for the new row
-        :type note: str, optional
-        :param location: An optional location for the new row
-        :type location: str, optional
+        :param create_row_input: A parameter that describes the new row
+            to create
+        :type create_row_input: str
 
         :returns Row: The new row in a datacenter.
 
@@ -545,12 +537,7 @@ class RowMixin(NebMixin):
         # setup query parameters
         parameters = dict()
         parameters["input"] = GraphQLParam(
-            CreateRowInput(
-                room_uuid=room_uuid,
-                name=name,
-                note=note,
-                location=location
-            ),
+            create_row_input,
             "CreateRowInput",
             True
         )
@@ -568,22 +555,20 @@ class RowMixin(NebMixin):
     def delete_row(
             self,
             uuid: str,
-            cascade: bool = False
+            delete_row_input: DeleteRowInput
     ) -> Row:
         """Allows deletion of an existing row object
 
         The deletion of a row is only possible if the row has no hosts
         (servers) associated with any child items. By default,
-        deletion of a row is only allowed when it is not  referenced by any
-        racks or if the ``cascade`` parameter is set to ``True``.
+        deletion of a row is only allowed when it is not referenced by any
+        racks or if the ``cascade`` parameter of the ``delete_row_input``
+        parameter is set to ``True``.
 
         :param uuid: The unique identifier of the row to delete
         :type uuid: str
-        :param cascade: If set to ``True`` any child items of the row (rack) will
-            automatically deleted with this request. If set to ``False`` or
-            omitted and the row has child objects, the deletion will fail with
-            an error.
-        :type cascade: bool, optional
+        :param delete_row_input: A parameter that defines the delete behavior
+        :type delete_row_input: DeleteRowInput, optional
 
         :returns bool: If the query was successful
 
@@ -594,9 +579,7 @@ class RowMixin(NebMixin):
         parameters = dict()
         parameters["uuid"] = GraphQLParam(uuid, "UUID", True)
         parameters["input"] = GraphQLParam(
-            DeleteRowInput(
-                cascade=cascade
-            ),
+            delete_row_input,
             "DeleteRowInput",
             False
         )
@@ -614,10 +597,7 @@ class RowMixin(NebMixin):
     def update_row(
             self,
             uuid: str,
-            room_uuid: str = None,
-            name: str = None,
-            note: str = None,
-            location: str = None
+            update_row_input: UpdateRowInput
     ):
         """Allows updating properties of an existing datacenter room object
 
@@ -625,15 +605,9 @@ class RowMixin(NebMixin):
 
         :param uuid: The unique identifier of the row to update
         :type uuid: str
-        :param room_uuid: New parent room for the row
-        :type room_uuid: str, optional
-        :param name: New name for the row
-        :type name: str, optional
-        :param note: The new note for the row. For removing the note, provide
-            an empty str.
-        :type note: str, optional
-        :param location: A new optional location for the row
-        :type location: str, optional
+        :param update_row_input: A parameter that describes the changes to make
+            to the referenced row.
+        :type update_row_input: UpdateRowInput
 
         :returns Room: The updated datacenter room object.
 
@@ -644,12 +618,7 @@ class RowMixin(NebMixin):
         parameters = dict()
         parameters["uuid"] = GraphQLParam(uuid, "UUID", True)
         parameters["input"] = GraphQLParam(
-            UpdateRowInput(
-                room_uuid=room_uuid,
-                name=name,
-                note=note,
-                location=location,
-            ),
+            update_row_input,
             "UpdateRowInput",
             True
         )

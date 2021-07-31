@@ -1,5 +1,5 @@
 #
-# Copyright 2020 Nebulon, Inc.
+# Copyright 2021 Nebulon, Inc.
 # All Rights Reserved.
 #
 # DISCLAIMER: THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND,
@@ -78,7 +78,7 @@ class NPodRecipeFilter:
 
     def __init__(
             self,
-            npod_uuid: str,
+            npod_uuid: str = None,
             recipe_uuid: str = None,
             completed: bool = None
     ):
@@ -96,9 +96,9 @@ class NPodRecipeFilter:
         :type npod_uuid: str, optional
         :param recipe_uuid: Filter for a specific recipe.
         :type recipe_uuid: str, optional
-        :param completed: Filter for recipe completion status. If set to ``True``
-            only completed recipes are returned, if set to ``False`` only active
-            recipes are returned
+        :param completed: Filter for recipe completion status. If set to
+            ``True`` only completed recipes are returned, if set to ``False``
+            only active recipes are returned
         :type completed: bool, optional
         """
 
@@ -144,7 +144,7 @@ class RecipeRecord:
     ):
         """Constructs a new RecipeRecord object
 
-        This constructor expects a dict() object from the nebulon ON API. It
+        This constructor expects a ``dict`` object from the nebulon ON API. It
         will check the returned data against the currently implemented schema
         of the SDK.
 
@@ -241,7 +241,7 @@ class RecipeRecordList:
     ):
         """Constructs a new RecipeRecordList object
 
-        This constructor expects a dict() object from the nebulon ON API. It
+        This constructor expects a ``dict`` object from the nebulon ON API. It
         will check the returned data against the currently implemented schema
         of the SDK.
 
@@ -279,9 +279,7 @@ class RecipeMixin(NebMixin):
 
     def get_npod_recipes(
             self,
-            npod_uuid: str,
-            recipe_uuid: str = None,
-            completed: bool = None
+            npod_recipe_filter: NPodRecipeFilter
     ) -> RecipeRecordList:
         """Retrieves a list of recipes
 
@@ -289,18 +287,8 @@ class RecipeMixin(NebMixin):
         on-premises infrastructure. As commands may require some time to
         complete, the recipe filter allows the query for their status.
 
-        :param npod_uuid: The unique identifier of the nPod for which recipes
-            shall be returned
-        :type npod_uuid: str
-        :param recipe_uuid: The unique identifier of the recipe to retrieve. If
-            not specified all recipes for the specified nPod will be returned
-            that match the remaining filter criteria.
-        :type recipe_uuid: str, optional
-        :param completed: If provided and set to ``True`` only completed recipes
-            are returned. If provided and set to ``False`` only active recipes
-            are returned. If omitted, all recipes, independent of their status,
-            are returned, provided they match the remaining criteria.
-        :type completed: bool, optional
+        :param npod_recipe_filter: A filter object to filter recipes
+        :type npod_recipe_filter: NPodRecipeFilter
 
         :returns RecipeRecordList: A paginated list of recipes.
 
@@ -310,11 +298,7 @@ class RecipeMixin(NebMixin):
         # setup query parameters
         parameters = dict()
         parameters["filter"] = GraphQLParam(
-            NPodRecipeFilter(
-                npod_uuid=npod_uuid,
-                recipe_uuid=recipe_uuid,
-                completed=completed
-            ),
+            npod_recipe_filter,
             "NPodRecipeFilter",
             False
         )

@@ -1,5 +1,5 @@
 #
-# Copyright 2020 Nebulon, Inc.
+# Copyright 2021 Nebulon, Inc.
 # All Rights Reserved.
 #
 # DISCLAIMER: THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND,
@@ -13,12 +13,11 @@
 
 from .graphqlclient import GraphQLParam, NebMixin
 from .common import PageInput, NebEnum, read_value
-from .filters import UuidFilter, StringFilter
+from .filters import UUIDFilter, StringFilter
 from .sorting import SortDirection
 from .tokens import TokenResponse
 
 __all__ = [
-    "SnapConsistencyLevel",
     "SnapshotConsistencyLevel",
     "CreateCloneInput",
     "ScheduleInput",
@@ -39,6 +38,7 @@ class SnapConsistencyLevel(NebEnum):
 
     This enumeration is deprecated. Use ``SnapshotConsistencyLevel`` instead.
     """
+    Unknown = "Unknown"
     Volume = "VV"
     SPU = "SPU"
     NPod = "Pod"
@@ -46,6 +46,7 @@ class SnapConsistencyLevel(NebEnum):
 
 class SnapshotConsistencyLevel(NebEnum):
     """Defines the snapshot consistency level for snapshots"""
+    Unknown = "Unknown"
     Volume = "Volume"
     SPU = "SPU"
     NPod = "NPod"
@@ -120,23 +121,23 @@ class ScheduleInput:
 
         Schedules are used to perform operations automatically. The schedule
         defines when and how often the operations are executed. Multiple values
-        for ``minute``, ``hour``, ``day_of_week``, ``day_of_month``, and ``month`` can
-        be specified when the operation should be executed multiple times in the
-        respective time frame.
+        for ``minute``, ``hour``, ``day_of_week``, ``day_of_month``, and
+        ``month`` can be specified when the operation should be executed
+        multiple times in the respective time frame.
 
-        :param minute: The minute of the time when an operation should be
+        :param minute: The minutes of the time when an operation should be
             executed. The valid range is `00` to `60`.
         :type minute: [int], optional
-        :param hour: The hour of the time when an operation should be
+        :param hour: The hours of the time when an operation should be
             executed. The valid range is `00` to `23`.
         :type hour: [int], optional
-        :param day_of_week: The day of the week when an operation should be
+        :param day_of_week: The days of the week when an operation should be
             executed. The valid range is `1` to `7`, where `1` is Monday.
         :type day_of_week: [int], optional
-        :param day_of_month: The day in the month when an operation should be
+        :param day_of_month: The days in the month when an operation should be
             executed. The valid range is `1` to `31`.
         :type day_of_month: [int], optional
-        :param month: The month in the year when an operation should be
+        :param month: The months in the year when an operation should be
             executed. The valid range is `1` to `12`.
         :type month: [int], optional
         """
@@ -225,7 +226,7 @@ class SnapshotScheduleTemplateFilter:
 
     def __init__(
             self,
-            uuid: UuidFilter = None,
+            uuid: UUIDFilter = None,
             name: StringFilter = None,
             and_filter=None,
             or_filter=None
@@ -238,7 +239,7 @@ class SnapshotScheduleTemplateFilter:
 
         :param uuid: Filter based on snapshot schedule template unique
             identifiers
-        :type uuid: UuidFilter, optional
+        :type uuid: UUIDFilter, optional
         :param name: Filter based on snapshot schedule template name
         :type name: StringFilter, optional
         :param and_filter: Concatenate another filter with a logical AND
@@ -252,7 +253,7 @@ class SnapshotScheduleTemplateFilter:
         self.__or = or_filter
 
     @property
-    def uuid(self) -> UuidFilter:
+    def uuid(self) -> UUIDFilter:
         """Filter based on snapshot schedule template unique identifier"""
         return self.__uuid
 
@@ -310,22 +311,23 @@ class CreateSnapshotScheduleTemplateInput:
         :type name: str
         :param name_pattern: A naming pattern for volume snapshot names when
             they are automatically created. Available variables for the format
-            string are from the standard ``strftime`` function. Additionally `%v`
-            is used for the base volume name.
+            string are from the standard ``strftime`` function. Additionally
+            ``%v`` is used for the base volume name.
         :type name_pattern: str
         :param schedule: The schedule by which volume snapshots will be created
         :type schedule: ScheduleInput
         :param expiration_seconds: A time in seconds when snapshots will be
             automatically deleted. If not specified, snapshots will not be
-            deleted automatically (not recommended)
+            deleted automatically. It's recommended to always set an expiration
+            for automatically created snapshots.
         :type expiration_seconds: int, optional
         :param retention_seconds: A time in seconds that prevents users from
-            deleting snapshots. If not specified, snapshots can be immediately
-            deleted.
+            deleting snapshots. If not specified, snapshots can be deleted
+            immediately
         :type retention_seconds: int, optional
         :param ignore_boot_volumes: Allows specifying if boot volumes shall be
             included when doing snapshots (``True``) or if they shall be ignored
-            (`False). By default, all volumes are included.
+            (``False``). By default, all volumes are included.
         :type ignore_boot_volumes: bool, optional
         """
         self.__name = name
@@ -363,7 +365,7 @@ class CreateSnapshotScheduleTemplateInput:
 
     @property
     def consistency_level(self) -> SnapshotConsistencyLevel:
-        """Snapshot consistency level. Always set to ``Volume``"""
+        """Snapshot consistency level. Currently always set to ``Volume``"""
         return self.__consistency_level
 
     @property
@@ -413,14 +415,15 @@ class UpdateSnapshotScheduleTemplateInput:
         :type name: str, optional
         :param name_pattern: A naming pattern for volume snapshot names when
             they are automatically created. Available variables for the format
-            string are from the standard ``strftime`` function. Additionally `%v`
-            is used for the base volume name.
+            string are from the standard ``strftime`` function. Additionally
+            ``%v`` is used for the base volume name.
         :type name_pattern: str, optional
         :param schedule: The schedule by which volume snapshots will be created
         :type schedule: ScheduleInput, optional
         :param expiration_seconds: A time in seconds when snapshots will be
             automatically deleted. If not specified, snapshots will not be
-            deleted automatically (not recommended)
+            deleted automatically. It's recommended to always set an expiration
+            for automatically created snapshots
         :type expiration_seconds: int, optional
         :param retention_seconds: A time in seconds that prevents users from
             deleting snapshots. If not specified, snapshots can be immediately
@@ -428,18 +431,18 @@ class UpdateSnapshotScheduleTemplateInput:
         :type retention_seconds: int, optional
         :param ignore_boot_volumes: Allows specifying if boot volumes shall be
             included when doing snapshots (``True``) or if they shall be ignored
-            (`False). By default, all volumes are included.
+            (``False``). By default, all volumes are included.
         :type ignore_boot_volumes: bool, optional
         """
 
         self.__name = name
         self.__name_pattern = name_pattern
-        self.__read_only = None
         self.__schedule = schedule
         self.__expiration_seconds = expiration_seconds
         self.__retention_seconds = retention_seconds
-        self.__consistency_level = None
         self.__ignore_boot_volumes = ignore_boot_volumes
+        self.__read_only = None  # not user configurable
+        self.__consistency_level = None  # not user configurable
 
     @property
     def name(self) -> str:
@@ -468,7 +471,7 @@ class UpdateSnapshotScheduleTemplateInput:
 
     @property
     def consistency_level(self) -> SnapshotConsistencyLevel:
-        """Snapshot consistency level (Can not be specified)"""
+        """Snapshot consistency level. Currently always set to ``Volume``"""
         return self.__consistency_level
 
     @property
@@ -490,7 +493,7 @@ class UpdateSnapshotScheduleTemplateInput:
 
 
 class Schedule:
-    """An schedule object
+    """A schedule object
 
     Schedules are used to perform operations automatically. The schedule defines
     when and how often the operations are executed.
@@ -502,7 +505,7 @@ class Schedule:
     ):
         """Constructs a new schedule object
 
-        This constructor expects a dict() object from the nebulon ON API. It
+        This constructor expects a ``dict`` object from the nebulon ON API. It
         will check the returned data against the currently implemented schema
         of the SDK.
 
@@ -573,7 +576,7 @@ class SnapshotScheduleTemplate:
     ):
         """Constructs a new schedule object
 
-        This constructor expects a dict() object from the nebulon ON API. It
+        This constructor expects a ``dict`` object from the nebulon ON API. It
         will check the returned data against the currently implemented schema
         of the SDK.
 
@@ -674,7 +677,7 @@ class SnapshotScheduleTemplateList:
     """Paginated snapshot schedule template list
 
     Contains a list of snapshot schedule template objects and information for
-    pagination. By default a single page includes a maximum of `100` items
+    pagination. By default a single page includes a maximum of ``100`` items
     unless specified otherwise in the paginated query.
 
     Consumers should always check for the property ``more`` as per default
@@ -687,7 +690,7 @@ class SnapshotScheduleTemplateList:
     ):
         """Constructs a new snapshot schedule template list object
 
-        This constructor expects a dict() object from the nebulon ON API. It
+        This constructor expects a ``dict`` object from the nebulon ON API. It
         will check the returned data against the currently implemented schema
         of the SDK.
 
@@ -749,7 +752,7 @@ class NPodSnapshotSchedule:
     ):
         """Constructs a new NPodSnapshotSchedule object
 
-        This constructor expects a dict() object from the nebulon ON API. It
+        This constructor expects a ``dict`` object from the nebulon ON API. It
         will check the returned data against the currently implemented schema
         of the SDK.
 
@@ -899,7 +902,7 @@ class SnapshotMixin(NebMixin):
 
         :param page: The requested page from the server. This is an optional
             argument and if omitted the server will default to returning the
-            first page with a maximum of `100` items.
+            first page with a maximum of ``100`` items.
         :type page: PageInput, optional
         :param template_filter: A filter object to filter the snapshot schedule
             template objects on the server. If omitted, the server will return
@@ -937,12 +940,8 @@ class SnapshotMixin(NebMixin):
 
     def create_snapshot_schedule_template(
             self,
-            name: str,
-            name_pattern: str,
-            schedule: ScheduleInput,
-            expiration_seconds: int = None,
-            retention_seconds: int = None,
-            ignore_boot_volumes: bool = None
+            create_template_input: CreateSnapshotScheduleTemplateInput
+
     ) -> SnapshotScheduleTemplate:
         """Allows creation of a new snapshot schedule template
 
@@ -951,27 +950,9 @@ class SnapshotMixin(NebMixin):
         nPods. They are referenced in nPod templates and are provisioned when a
         nPod is formed from such a template.
 
-        :param name: Human readable name for the snapshot schedule template
-        :type name: str
-        :param name_pattern: A naming pattern for volume snapshot names when
-            they are automatically created. Available variables for the format
-            string are from the standard ``strftime`` function. Additionally `%v`
-            is used for the base volume name.
-        :type name_pattern: str
-        :param schedule: The schedule by which volume snapshots will be created
-        :type schedule: ScheduleInput
-        :param expiration_seconds: A time in seconds when snapshots will be
-            automatically deleted. If not specified, snapshots will not be
-            deleted automatically (not recommended)
-        :type expiration_seconds: int, optional
-        :param retention_seconds: A time in seconds that prevents users from
-            deleting snapshots. If not specified, snapshots can be immediately
-            deleted.
-        :type retention_seconds: int, optional
-        :param ignore_boot_volumes: Allows specifying if boot volumes shall be
-            included when doing snapshots (``True``) or if they shall be ignored
-            (``False``). By default, all volumes are included.
-        :type ignore_boot_volumes: bool, optional
+        :param create_template_input: A parameter that describes the snapshot
+            schedule template to create
+        :type create_template_input: CreateSnapshotScheduleTemplateInput
 
         :returns SnapshotScheduleTemplate: The new snapshot schedule template
 
@@ -981,14 +962,7 @@ class SnapshotMixin(NebMixin):
         # setup query parameters
         parameters = dict()
         parameters["input"] = GraphQLParam(
-            CreateSnapshotScheduleTemplateInput(
-                name=name,
-                name_pattern=name_pattern,
-                schedule=schedule,
-                expiration_seconds=expiration_seconds,
-                retention_seconds=retention_seconds,
-                ignore_boot_volumes=ignore_boot_volumes
-            ),
+            create_template_input,
             "CreateSnapshotScheduleTemplateInput",
             True
         )
@@ -1006,12 +980,7 @@ class SnapshotMixin(NebMixin):
     def update_snapshot_schedule_template(
             self,
             uuid: str,
-            name: str = None,
-            name_pattern: str = None,
-            schedule: ScheduleInput = None,
-            expiration_seconds: int = None,
-            retention_seconds: int = None,
-            ignore_boot_volumes: bool = None
+            update_template_input: UpdateSnapshotScheduleTemplateInput
     ) -> SnapshotScheduleTemplate:
         """Allows updating the properties of a snapshot schedule template
 
@@ -1020,27 +989,13 @@ class SnapshotMixin(NebMixin):
         across nPods. They are referenced in nPod templates and are provisioned
         when a nPod is formed from such a template.
 
-        :param name: Human readable name for the snapshot schedule template
-        :type name: str, optional
-        :param name_pattern: A naming pattern for volume snapshot names when
-            they are automatically created. Available variables for the format
-            string are from the standard ``strftime`` function. Additionally `%v`
-            is used for the base volume name.
-        :type name_pattern: str, optional
-        :param schedule: The schedule by which volume snapshots will be created
-        :type schedule: ScheduleInput, optional
-        :param expiration_seconds: A time in seconds when snapshots will be
-            automatically deleted. If not specified, snapshots will not be
-            deleted automatically (not recommended)
-        :type expiration_seconds: int, optional
-        :param retention_seconds: A time in seconds that prevents users from
-            deleting snapshots. If not specified, snapshots can be immediately
-            deleted.
-        :type retention_seconds: int, optional
-        :param ignore_boot_volumes: Allows specifying if boot volumes shall be
-            included when doing snapshots (``True``) or if they shall be ignored
-            (``False``). By default, all volumes are included.
-        :type ignore_boot_volumes: bool, optional
+        :param uuid: The unique identifier of the snapshot schedule template
+            to update
+        :type uuid: str
+        :param update_template_input: A parameter that describes the changes
+            to apply to the snapshot schedule template that is identified by
+            the provided ``uuid``.
+        :type update_template_input: UpdateSnapshotScheduleTemplateInput
 
         :returns SnapshotScheduleTemplate: The updated snapshot schedule
             template
@@ -1052,14 +1007,7 @@ class SnapshotMixin(NebMixin):
         parameters = dict()
         parameters["uuid"] = GraphQLParam(uuid, "UUID", True)
         parameters["input"] = GraphQLParam(
-            UpdateSnapshotScheduleTemplateInput(
-                name=name,
-                name_pattern=name_pattern,
-                schedule=schedule,
-                expiration_seconds=expiration_seconds,
-                retention_seconds=retention_seconds,
-                ignore_boot_volumes=ignore_boot_volumes
-            ),
+            update_template_input,
             "UpdateSnapshotScheduleTemplateInput",
             True
         )
@@ -1076,13 +1024,16 @@ class SnapshotMixin(NebMixin):
 
     def delete_snapshot_schedule_template(
             self,
-            uuid: str
+            uuid: str,
+            force: bool = None
     ) -> bool:
         """Allows deletion of an existing snapshot schedule template
 
         :param uuid: The unique identifier of the snapshot schedule template
             to delete
         :type uuid: str
+        :param force: Forces the deletion of the snapshot schedule template
+        :type force: bool, optional
 
         :returns bool: If the query was successful
 
@@ -1092,6 +1043,7 @@ class SnapshotMixin(NebMixin):
         # setup query parameters
         parameters = dict()
         parameters["uuid"] = GraphQLParam(uuid, "UUID", True)
+        parameters["force"] = GraphQLParam(force, "force", False)
 
         # make the request
         response = self._mutation(
@@ -1155,8 +1107,8 @@ class SnapshotMixin(NebMixin):
             for which to create a snapshot
         :type parent_volume_uuids: [str]
         :param name_patterns: List of naming patterns for volume snapshots.
-            Options of the ``strftime`` function are available to format time and
-            the variable `%v` that will be translated to the volume name.
+            Options of the ``strftime`` function are available to format time
+            and the variable ``%v`` that will be translated to the volume name.
         :type name_patterns: [str]
         :param expiration_seconds: The number of seconds after snapshot creation
             when the snapshots will be automatically deleted
@@ -1196,8 +1148,7 @@ class SnapshotMixin(NebMixin):
 
     def create_clone(
             self,
-            name: str,
-            volume_uuid: str
+            create_clone_input: CreateCloneInput
     ):
         """Allows creating a read/writeable clone of a volume or snapshot
 
@@ -1207,11 +1158,9 @@ class SnapshotMixin(NebMixin):
         purposes when applications require read/write access for copy
         operations.
 
-        :param name: The human readable name for the volume clone
-        :type name: str
-        :param volume_uuid: The unique identifier for the volume or snapshot
-            from which to create the clone
-        :type volume_uuid: str
+        :param create_clone_input: A parameter that describes the clone to
+            create
+        :type create_clone_input: CreateCloneInput
 
         :raises GraphQLError: An error with the GraphQL endpoint.
         :raises Exception: If token delivery failed
@@ -1220,10 +1169,7 @@ class SnapshotMixin(NebMixin):
         # setup query parameters
         parameters = dict()
         parameters["input"] = GraphQLParam(
-            CreateCloneInput(
-                name=name,
-                volume_uuid=volume_uuid,
-            ),
+            create_clone_input,
             "CreateCloneInput",
             True
         )

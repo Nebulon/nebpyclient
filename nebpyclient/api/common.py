@@ -1,5 +1,5 @@
 #
-# Copyright 2020 Nebulon, Inc.
+# Copyright 2021 Nebulon, Inc.
 # All Rights Reserved.
 #
 # DISCLAIMER: THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND,
@@ -30,7 +30,7 @@ def parse_time(value: str) -> datetime:
 
     Parses a ``str`` and converts it to a ``datetime`` object. If the string is
     not a valid JSON (JavaScript) encoded datetime object, this function will
-    return the minimum datetime value (`datetime.min`).
+    return the minimum datetime value (``datetime.min``).
 
     :param value: The string value to parse
     :type value: str
@@ -45,7 +45,7 @@ def parse_time(value: str) -> datetime:
 
 
 def time_to_str(value: datetime) -> str:
-    """Convert a datetime object to a JSON (JavaScript) compliant string
+    """Convert a ``datetime`` object to a JSON (JavaScript) string
 
     Formats the provided datetime object to a ``str`` that is compliant with the
     JSON schema. Example: `2020-01-01T10:10:10Z`.
@@ -55,7 +55,7 @@ def time_to_str(value: datetime) -> str:
 
     :raises ValueError: If the provided value is not a valid datetime object
 
-    :returns str: the JSON (JavaScript) compliant version of the date and time
+    :returns str: The JSON (JavaScript) compliant version of the date and time
     """
 
     if value is None or not isinstance(value, datetime):
@@ -70,18 +70,18 @@ def read_value(
         data_type: type,
         mandatory=True
 ) -> any:
-    """Helper function to extract values from a response dict
+    """Helper function to extract values from a response ``dict``
 
-    Allows extraction of nested values from a dictionary for convenience.
+    Allows extraction of nested values from a ``dict`` for convenience.
     This also allows for type checking and for validating that mandatory
     properties were supplied.
 
     :param key_path: A JSONPath-like path to a value in the dictionary. Each
-        hierarchy is separated via a dot. Example: `parent_key.child_key` will
-        lookup a value in the provided dict `data["parent_key"]["child_key"]`
+        hierarchy is separated via a dot. Example: ``parent_key.child_key`` will
+        lookup a value in the provided dict ``data["parent_key"]["child_key"]``
     :type key_path: str
-    :param data: A dictionary of values, typically JSON returned from the
-        nebulon ON API. Values will be looked up in this dict
+    :param data: A ``dict`` of values, typically JSON returned from the
+        nebulon ON API. Values will be looked up in this ``dict``
     :type data: dict
     :param data_type: The expected data type for the lookup value. If the
         lookup value is a list, the expected element type shall be supplied.
@@ -90,14 +90,18 @@ def read_value(
         to ``True`` the lookup value must not be ``None`` or a ``ValueError`` is
         raised.
 
-    :returns any: Returns the value in the dict (if found) that is identified
-        via the provided key_path. If the value is not found or if the value
-        is None while mandatory, a ValueError is raised.
+    :returns any: Returns the value in the ``dict`` (if found) that is
+        identified via the provided ``key_path``. If the value is not found or
+        if the value is ``None`` while marked as mandatory, a ``ValueError``
+        is raised.
 
     :raises ValueError: If the value indicated by ``key_path`` is not found in
-        the dict supplied in ``data``, if the lookup value is None while it is a
-        mandatory value, or if the supplied ``data_type`` does not match the
-        lookup value data type.
+        the supplied ``data`` parameter, if the lookup value is ``None`` while
+        it is a mandatory value.
+
+    :raises TypeError: If the data type of the value found by ``key_path``
+        in the provided ``data`` parameter is not matching the data type that
+        is provided in the parameter ``data_type``.
     """
 
     # build the path. we expect a ``key_path`` that looks like this:
@@ -108,7 +112,7 @@ def read_value(
     # dictionary that is provided via ``data``.
     if data is None or len(segments) == 0 or segments[0] not in data:
         if mandatory:
-            raise Exception(f"provided key {key_path} is invalid for {data}")
+            raise ValueError(f"provided key {key_path} is invalid for {data}")
 
         return None
 
@@ -120,7 +124,7 @@ def read_value(
     # it is ok to return None if the value is not mandatory
     if value is None:
         if mandatory:
-            raise Exception(f"required property {key} was not set")
+            raise ValueError(f"required property {key} was not set")
 
         return None
 
@@ -157,17 +161,17 @@ def __convert_value(
     cleans up any type issues that may result from JSON encoding and decoding.
 
     :param key: The name of the key in a dictionary. While this parameter is
-        not used for the type checking, it is used to provide a meaningful
-        error message.
+        not used for the type checking or conversion, it is used to provide a
+        meaningful error message.
     :type key: str
-    :param value: The value in the dictionary that will be type-checked. If the
-        supplied value is ``None``, type checking is omitted.
+    :param value: The value that will be type-checked. If the supplied value
+        is ``None``, type checking is not done.
     :type: any
     :param data_type: The type that ``value`` needs to match or what it will be
         converted to.
     :type: type
 
-    :raises ValueError: An error indicating if there are any issues with the
+    :raises TypeError: An error indicating if there are any issues with the
         supplied value matching the provided data type.
 
     :returns any: The converted value in the specified type.
@@ -194,14 +198,14 @@ def __convert_value(
 
     # dicts are interpreted as objects, so we instantiate a new object from
     # the provided dictionary. This may fail if the supplied data_type does
-    # not have a constructor that accepts a dictionary.
+    # not have a constructor that accepts a dict.
     if isinstance(value, dict):
         return data_type(value)
 
     # if we got to this place an invalid data type was supplied and we raise
-    # a ValueError.
+    # a TypeError.
     error = f"{key} of invalid type {data_type}, got {value.__class__}"
-    raise ValueError(error)
+    raise TypeError(error)
 
 
 class NebEnum(Enum):
@@ -234,13 +238,16 @@ class NebEnum(Enum):
                 # found a matching value
                 return item
 
-        raise ValueError(f"Could not parse value '{value}'")
+        # Fallback value in case the API adds an enum that is not supported
+        # by an older version of the SDK
+        return cls.Unknown
 
 
 class DateFormat(NebEnum):
     """Defines available date and time format options
 
     Examples:
+
         * ANSIC: ``Mon Jan _2 15:04:05 2006``
         * UnixDate: ``Mon Jan _2 15:04:05 MST 2006``
         * RubyDate: ``Mon Jan 02 15:04:05 -0700 2006``
@@ -295,9 +302,9 @@ class ResourceType(NebEnum):
     """A nPod resource"""
 
     PodGroup = "PodGroup"
-    """A group of nPods """
+    """A group of nPods"""
 
-    Lab = "Lab"
+    Room = "Room"
     """A room or lab in a datacenter"""
 
     Rack = "Rack"
@@ -328,7 +335,7 @@ class PageInput:
     Allows specifying which page to return from the server for API calls that
     support pagination. It allows to specify the page number and the quantity
     of items to return in the page. Default values for a page are page number
-    1 and 100 items per page.
+    ``1`` and ``100`` items per page.
     """
 
     def __init__(
@@ -341,23 +348,14 @@ class PageInput:
         Allows specifying which page to return from the server for API calls
         that support pagination. It allows to specify the page number and the
         quantity of items to return in the page. Default values for a page
-        are page number 1 and 100 items per page.
+        are page number ``1`` and ``100`` items per page.
 
-        :param page: The page number. Defaults to 1.
+        :param page: The page number. Defaults to ``1``.
         :type page: int, optional
         :param count: The maximum number of items to include in a page.
-            Defaults to 100.
+            Defaults to ``100`` items.
         :type count: int, optional
-
-        :raises ValueError: If an out of range ``page`` number is provided
-        :raises ValueError: If an out of range ``count`` number is provided
         """
-
-        if page < 1:
-            raise ValueError("page must be a positive int")
-
-        if count < 1:
-            raise ValueError("count must be a positive int")
 
         self.__page = page
         self.__count = count

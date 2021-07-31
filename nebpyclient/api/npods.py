@@ -1,5 +1,5 @@
 #
-# Copyright 2020 Nebulon, Inc.
+# Copyright 2021 Nebulon, Inc.
 # All Rights Reserved.
 #
 # DISCLAIMER: THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND,
@@ -15,12 +15,12 @@ from time import sleep
 from .graphqlclient import GraphQLParam, NebMixin
 from datetime import datetime
 from .common import NebEnum, PageInput, read_value
-from .filters import StringFilter, UuidFilter
+from .filters import StringFilter, UUIDFilter
 from .sorting import SortDirection
 from .recipe import RecipeState
 from .tokens import TokenResponse
 from .issues import Issues
-from .updates import UpdateHistory
+from .updates import UpdateHistory, NPodRecommendedPackage
 
 _TIMEOUT_SECONDS = 60 * 45
 """Timeout to wait for nPod creation to complete"""
@@ -45,626 +45,756 @@ __all__ = [
 
 # TODO: Move these enums to the SPU space
 class BondTransmitHashPolicy(NebEnum):
-    """Transmit has policy used by link aggregation"""
+    """Transmit has policy used by link aggregation
+
+    Allows selecting the algorithm for child interface selection according to
+    the specified TCP/IP Layer.
+    """
 
     TransmitHashPolicyLayer2 = "TransmitHashPolicyLayer2"
+    """
+    Uses the physical interface MAC address for interface selection
+    """
+
     TransmitHashPolicyLayer34 = "TransmitHashPolicyLayer34"
+    """
+    Uses the layer 3 and 4 protocol data for interface selection
+    """
+
     TransmitHashPolicyLayer23 = "TransmitHashPolicyLayer23"
+    """
+    Uses the layer 2 and 3 protocol data for interface selection
+    """
 
 
 class BondLACPTransmitRate(NebEnum):
-    """Link aggregation transmit rate for LCAP"""
+    """Link aggregation transmit rate for LACP
+
+    Allows configuration of the LACP rate - how frequently the LACP partner
+    should transmit LACPDUs (Link Aggregation Control Protocol Data Units).
+    """
 
     LACPTransmitRateSlow = "LACPTransmitRateSlow"
+    """
+    Send LACPDUs every thirty seconds
+    """
+
     LACPTransmitRateFast = "LACPTransmitRateFast"
+    """
+    Send LACPDUs every one second
+    """
 
 
 class BondType(NebEnum):
-    """Link aggregation type for data ports"""
+    """Link aggregation type for data ports
+
+    Allows selecting the link aggregation mode for data network interfaces.
+    """
 
     BondModeNone = "BondModeNone"
+    """
+    No link aggregation. Both data ports communicate independently on their
+    own networks. NebOS will internally manage failover between the interfaces.
+    """
+
     BondMode8023ad = "BondMode8023ad"
+    """
+    Use LACP (IEEE 802.3ad) for link aggregation.
+    """
+
     BOND_MODE_BALANCE_ALB = "BondModeBalanceALB"
+    """
+    Use balance ALB (bonding mode 6) for load balancing and link aggregation.
+    """
+
+
+class DebugInfoInput:
+    """Allows collecting debug information of infrastructure on demand
+
+    This input class is used in the collect_debug_info method that will collect
+    verbose debug and troubleshooting information from the specified resource.
+    This information is used during support case troubleshooting.
+    """
+
+    def __init__(
+            self,
+            npod_uuid: str = None,
+            spu_serial: str = None,
+            note: str = None,
+            support_case_number: str = None
+    ):
+        """Constructs a new input object to collect debug information
+
+        This input class is used in the collect_debug_info method that will
+        collect verbose debug and troubleshooting information from the
+        specified resource. This information is used during support case
+        troubleshooting.
+
+        One of ``npod_uuid`` or ``spu_serial`` must be specified as the target
+        of information collection. If a nPod UUID is specified, information is
+        collected from all SPUs in the nPod. If a SPU serial number is used,
+        only information of the SPU is collected.
+
+        Users can add additional information to the debug information through
+        the use of the ``note`` parameter. As an example, users can add
+        additional comments about observed behavior in this field.
+
+        If the collection of debug information is done as part of an active
+        support case, users are encouraged to populate the
+        ``support_case_number`` parameter to associate the submitted information
+        directly with the support case.
+
+        :param npod_uuid: The unique identifier of the nPod from which to
+            collect debug and troubleshooting information
+        :type npod_uuid: str, optional
+        :param spu_serial: The serial number of a services processing unit from
+            which to collect debug and troubleshooting information
+        :type spu_serial: str, optional
+        :param note: An optional note for the submitted data that will be made
+            accessible to nebulon customer satisfaction and engineering that is
+            reviewing the debug and troubleshooting information
+        :type note: str, optional
+        :param support_case_number: An optional support case number. If the
+            information collection is related to an active support case, users
+            are encouraged to supply the associated support case number.
+        :type support_case_number: str, optional
+        """
+
+        self.__npod_uuid = npod_uuid
+        self.__spu_serial = spu_serial
+        self.__note = note
+        self.__support_case_number = support_case_number
+
+    @property
+    def npod_uuid(self) -> str:
+        """The unique identifier of the nPod from which to collect data"""
+        return self.__npod_uuid
+
+    @property
+    def spu_serial(self) -> str:
+        """The serial number the SPU from which to collect data"""
+        return self.__spu_serial
+
+    @property
+    def note(self) -> str:
+        """An optional note to submit with the debug information"""
+        return self.__note
+
+    @property
+    def support_case_number(self) -> str:
+        """An optional support case number related to this data collection"""
+        return self.__support_case_number
+
+    @property
+    def as_dict(self) -> dict:
+        result = {
+            "nPodUUID": self.npod_uuid,
+            "spuSerial": self.spu_serial,
+            "note": self.note,
+            "supportCaseNumber": self.support_case_number
+        }
+        return result
 
 
 class SetNPodTimeZoneInput:
     """Allows setting the timezone of an nPod or SPU
 
     Possible timezones include:
-    * Africa/Abidjan
-    * Africa/Accra
-    * Africa/Addis_Ababa
-    * Africa/Algiers
-    * Africa/Asmara
-    * Africa/Asmera
-    * Africa/Bamako
-    * Africa/Bangui
-    * Africa/Banjul
-    * Africa/Bissau
-    * Africa/Blantyre
-    * Africa/Brazzaville
-    * Africa/Bujumbura
-    * Africa/Cairo
-    * Africa/Casablanca
-    * Africa/Ceuta
-    * Africa/Conakry
-    * Africa/Dakar
-    * Africa/Dar_es_Salaam
-    * Africa/Djibouti
-    * Africa/Douala
-    * Africa/El_Aaiun
-    * Africa/Freetown
-    * Africa/Gaborone
-    * Africa/Harare
-    * Africa/Johannesburg
-    * Africa/Juba
-    * Africa/Kampala
-    * Africa/Khartoum
-    * Africa/Kigali
-    * Africa/Kinshasa
-    * Africa/Lagos
-    * Africa/Libreville
-    * Africa/Lome
-    * Africa/Luanda
-    * Africa/Lubumbashi
-    * Africa/Lusaka
-    * Africa/Malabo
-    * Africa/Maputo
-    * Africa/Maseru
-    * Africa/Mbabane
-    * Africa/Mogadishu
-    * Africa/Monrovia
-    * Africa/Nairobi
-    * Africa/Ndjamena
-    * Africa/Niamey
-    * Africa/Nouakchott
-    * Africa/Ouagadougou
-    * Africa/Porto-Novo
-    * Africa/Sao_Tome
-    * Africa/Timbuktu
-    * Africa/Tripoli
-    * Africa/Tunis
-    * Africa/Windhoek
-    * America/Adak
-    * America/Anchorage
-    * America/Anguilla
-    * America/Antigua
-    * America/Araguaina
-    * America/Argentina/Buenos_Aires
-    * America/Argentina/Catamarca
-    * America/Argentina/ComodRivadavia
-    * America/Argentina/Cordoba
-    * America/Argentina/Jujuy
-    * America/Argentina/La_Rioja
-    * America/Argentina/Mendoza
-    * America/Argentina/Rio_Gallegos
-    * America/Argentina/Salta
-    * America/Argentina/San_Juan
-    * America/Argentina/San_Luis
-    * America/Argentina/Tucuman
-    * America/Argentina/Ushuaia
-    * America/Aruba
-    * America/Asuncion
-    * America/Atikokan
-    * America/Atka
-    * America/Bahia
-    * America/Bahia_Banderas
-    * America/Barbados
-    * America/Belem
-    * America/Belize
-    * America/Blanc-Sablon
-    * America/Boa_Vista
-    * America/Bogota
-    * America/Boise
-    * America/Buenos_Aires
-    * America/Cambridge_Bay
-    * America/Campo_Grande
-    * America/Cancun
-    * America/Caracas
-    * America/Catamarca
-    * America/Cayenne
-    * America/Cayman
-    * America/Chicago
-    * America/Chihuahua
-    * America/Coral_Harbour
-    * America/Cordoba
-    * America/Costa_Rica
-    * America/Creston
-    * America/Cuiaba
-    * America/Curacao
-    * America/Danmarkshavn
-    * America/Dawson
-    * America/Dawson_Creek
-    * America/Denver
-    * America/Detroit
-    * America/Dominica
-    * America/Edmonton
-    * America/Eirunepe
-    * America/El_Salvador
-    * America/Ensenada
-    * America/Fort_Nelson
-    * America/Fort_Wayne
-    * America/Fortaleza
-    * America/Glace_Bay
-    * America/Godthab
-    * America/Goose_Bay
-    * America/Grand_Turk
-    * America/Grenada
-    * America/Guadeloupe
-    * America/Guatemala
-    * America/Guayaquil
-    * America/Guyana
-    * America/Halifax
-    * America/Havana
-    * America/Hermosillo
-    * America/Indiana/Indianapolis
-    * America/Indiana/Knox
-    * America/Indiana/Marengo
-    * America/Indiana/Petersburg
-    * America/Indiana/Tell_City
-    * America/Indiana/Vevay
-    * America/Indiana/Vincennes
-    * America/Indiana/Winamac
-    * America/Indianapolis
-    * America/Inuvik
-    * America/Iqaluit
-    * America/Jamaica
-    * America/Jujuy
-    * America/Juneau
-    * America/Kentucky/Louisville
-    * America/Kentucky/Monticello
-    * America/Knox_IN
-    * America/Kralendijk
-    * America/La_Paz
-    * America/Lima
-    * America/Los_Angeles
-    * America/Louisville
-    * America/Lower_Princes
-    * America/Maceio
-    * America/Managua
-    * America/Manaus
-    * America/Marigot
-    * America/Martinique
-    * America/Matamoros
-    * America/Mazatlan
-    * America/Mendoza
-    * America/Menominee
-    * America/Merida
-    * America/Metlakatla
-    * America/Mexico_City
-    * America/Miquelon
-    * America/Moncton
-    * America/Monterrey
-    * America/Montevideo
-    * America/Montreal
-    * America/Montserrat
-    * America/Nassau
-    * America/New_York
-    * America/Nipigon
-    * America/Nome
-    * America/Noronha
-    * America/North_Dakota/Beulah
-    * America/North_Dakota/Center
-    * America/North_Dakota/New_Salem
-    * America/Nuuk
-    * America/Ojinaga
-    * America/Panama
-    * America/Pangnirtung
-    * America/Paramaribo
-    * America/Phoenix
-    * America/Port-au-Prince
-    * America/Port_of_Spain
-    * America/Porto_Acre
-    * America/Porto_Velho
-    * America/Puerto_Rico
-    * America/Punta_Arenas
-    * America/Rainy_River
-    * America/Rankin_Inlet
-    * America/Recife
-    * America/Regina
-    * America/Resolute
-    * America/Rio_Branco
-    * America/Rosario
-    * America/Santa_Isabel
-    * America/Santarem
-    * America/Santiago
-    * America/Santo_Domingo
-    * America/Sao_Paulo
-    * America/Scoresbysund
-    * America/Shiprock
-    * America/Sitka
-    * America/St_Barthelemy
-    * America/St_Johns
-    * America/St_Kitts
-    * America/St_Lucia
-    * America/St_Thomas
-    * America/St_Vincent
-    * America/Swift_Current
-    * America/Tegucigalpa
-    * America/Thule
-    * America/Thunder_Bay
-    * America/Tijuana
-    * America/Toronto
-    * America/Tortola
-    * America/Vancouver
-    * America/Virgin
-    * America/Whitehorse
-    * America/Winnipeg
-    * America/Yakutat
-    * America/Yellowknife
-    * Antarctica/Casey
-    * Antarctica/Davis
-    * Antarctica/DumontDUrville
-    * Antarctica/Macquarie
-    * Antarctica/Mawson
-    * Antarctica/McMurdo
-    * Antarctica/Palmer
-    * Antarctica/Rothera
-    * Antarctica/South_Pole
-    * Antarctica/Syowa
-    * Antarctica/Troll
-    * Antarctica/Vostok
-    * Arctic/Longyearbyen
-    * Asia/Aden
-    * Asia/Almaty
-    * Asia/Amman
-    * Asia/Anadyr
-    * Asia/Aqtau
-    * Asia/Aqtobe
-    * Asia/Ashgabat
-    * Asia/Ashkhabad
-    * Asia/Atyrau
-    * Asia/Baghdad
-    * Asia/Bahrain
-    * Asia/Baku
-    * Asia/Bangkok
-    * Asia/Barnaul
-    * Asia/Beirut
-    * Asia/Bishkek
-    * Asia/Brunei
-    * Asia/Calcutta
-    * Asia/Chita
-    * Asia/Choibalsan
-    * Asia/Chongqing
-    * Asia/Chungking
-    * Asia/Colombo
-    * Asia/Dacca
-    * Asia/Damascus
-    * Asia/Dhaka
-    * Asia/Dili
-    * Asia/Dubai
-    * Asia/Dushanbe
-    * Asia/Famagusta
-    * Asia/Gaza
-    * Asia/Harbin
-    * Asia/Hebron
-    * Asia/Ho_Chi_Minh
-    * Asia/Hong_Kong
-    * Asia/Hovd
-    * Asia/Irkutsk
-    * Asia/Istanbul
-    * Asia/Jakarta
-    * Asia/Jayapura
-    * Asia/Jerusalem
-    * Asia/Kabul
-    * Asia/Kamchatka
-    * Asia/Karachi
-    * Asia/Kashgar
-    * Asia/Kathmandu
-    * Asia/Katmandu
-    * Asia/Khandyga
-    * Asia/Kolkata
-    * Asia/Krasnoyarsk
-    * Asia/Kuala_Lumpur
-    * Asia/Kuching
-    * Asia/Kuwait
-    * Asia/Macao
-    * Asia/Macau
-    * Asia/Magadan
-    * Asia/Makassar
-    * Asia/Manila
-    * Asia/Muscat
-    * Asia/Nicosia
-    * Asia/Novokuznetsk
-    * Asia/Novosibirsk
-    * Asia/Omsk
-    * Asia/Oral
-    * Asia/Phnom_Penh
-    * Asia/Pontianak
-    * Asia/Pyongyang
-    * Asia/Qatar
-    * Asia/Qostanay
-    * Asia/Qyzylorda
-    * Asia/Rangoon
-    * Asia/Riyadh
-    * Asia/Saigon
-    * Asia/Sakhalin
-    * Asia/Samarkand
-    * Asia/Seoul
-    * Asia/Shanghai
-    * Asia/Singapore
-    * Asia/Srednekolymsk
-    * Asia/Taipei
-    * Asia/Tashkent
-    * Asia/Tbilisi
-    * Asia/Tehran
-    * Asia/Tel_Aviv
-    * Asia/Thimbu
-    * Asia/Thimphu
-    * Asia/Tokyo
-    * Asia/Tomsk
-    * Asia/Ujung_Pandang
-    * Asia/Ulaanbaatar
-    * Asia/Ulan_Bator
-    * Asia/Urumqi
-    * Asia/Ust-Nera
-    * Asia/Vientiane
-    * Asia/Vladivostok
-    * Asia/Yakutsk
-    * Asia/Yangon
-    * Asia/Yekaterinburg
-    * Asia/Yerevan
-    * Atlantic/Azores
-    * Atlantic/Bermuda
-    * Atlantic/Canary
-    * Atlantic/Cape_Verde
-    * Atlantic/Faeroe
-    * Atlantic/Faroe
-    * Atlantic/Jan_Mayen
-    * Atlantic/Madeira
-    * Atlantic/Reykjavik
-    * Atlantic/South_Georgia
-    * Atlantic/St_Helena
-    * Atlantic/Stanley
-    * Australia/ACT
-    * Australia/Adelaide
-    * Australia/Brisbane
-    * Australia/Broken_Hill
-    * Australia/Canberra
-    * Australia/Currie
-    * Australia/Darwin
-    * Australia/Eucla
-    * Australia/Hobart
-    * Australia/LHI
-    * Australia/Lindeman
-    * Australia/Lord_Howe
-    * Australia/Melbourne
-    * Australia/NSW
-    * Australia/North
-    * Australia/Perth
-    * Australia/Queensland
-    * Australia/South
-    * Australia/Sydney
-    * Australia/Tasmania
-    * Australia/Victoria
-    * Australia/West
-    * Australia/Yancowinna
-    * Brazil/Acre
-    * Brazil/DeNoronha
-    * Brazil/East
-    * Brazil/West
-    * CET
-    * CST6CDT
-    * Canada/Atlantic
-    * Canada/Central
-    * Canada/Eastern
-    * Canada/Mountain
-    * Canada/Newfoundland
-    * Canada/Pacific
-    * Canada/Saskatchewan
-    * Canada/Yukon
-    * Chile/Continental
-    * Chile/EasterIsland
-    * Cuba
-    * EET
-    * EST
-    * EST5EDT
-    * Egypt
-    * Eire
-    * Etc/GMT
-    * Etc/GMT+0
-    * Etc/GMT+1
-    * Etc/GMT+10
-    * Etc/GMT+11
-    * Etc/GMT+12
-    * Etc/GMT+2
-    * Etc/GMT+3
-    * Etc/GMT+4
-    * Etc/GMT+5
-    * Etc/GMT+6
-    * Etc/GMT+7
-    * Etc/GMT+8
-    * Etc/GMT+9
-    * Etc/GMT-0
-    * Etc/GMT-1
-    * Etc/GMT-10
-    * Etc/GMT-11
-    * Etc/GMT-12
-    * Etc/GMT-13
-    * Etc/GMT-14
-    * Etc/GMT-2
-    * Etc/GMT-3
-    * Etc/GMT-4
-    * Etc/GMT-5
-    * Etc/GMT-6
-    * Etc/GMT-7
-    * Etc/GMT-8
-    * Etc/GMT-9
-    * Etc/GMT0
-    * Etc/Greenwich
-    * Etc/UCT
-    * Etc/UTC
-    * Etc/Universal
-    * Etc/Zulu
-    * Europe/Amsterdam
-    * Europe/Andorra
-    * Europe/Astrakhan
-    * Europe/Athens
-    * Europe/Belfast
-    * Europe/Belgrade
-    * Europe/Berlin
-    * Europe/Bratislava
-    * Europe/Brussels
-    * Europe/Bucharest
-    * Europe/Budapest
-    * Europe/Busingen
-    * Europe/Chisinau
-    * Europe/Copenhagen
-    * Europe/Dublin
-    * Europe/Gibraltar
-    * Europe/Guernsey
-    * Europe/Helsinki
-    * Europe/Isle_of_Man
-    * Europe/Istanbul
-    * Europe/Jersey
-    * Europe/Kaliningrad
-    * Europe/Kiev
-    * Europe/Kirov
-    * Europe/Lisbon
-    * Europe/Ljubljana
-    * Europe/London
-    * Europe/Luxembourg
-    * Europe/Madrid
-    * Europe/Malta
-    * Europe/Mariehamn
-    * Europe/Minsk
-    * Europe/Monaco
-    * Europe/Moscow
-    * Europe/Nicosia
-    * Europe/Oslo
-    * Europe/Paris
-    * Europe/Podgorica
-    * Europe/Prague
-    * Europe/Riga
-    * Europe/Rome
-    * Europe/Samara
-    * Europe/San_Marino
-    * Europe/Sarajevo
-    * Europe/Saratov
-    * Europe/Simferopol
-    * Europe/Skopje
-    * Europe/Sofia
-    * Europe/Stockholm
-    * Europe/Tallinn
-    * Europe/Tirane
-    * Europe/Tiraspol
-    * Europe/Ulyanovsk
-    * Europe/Uzhgorod
-    * Europe/Vaduz
-    * Europe/Vatican
-    * Europe/Vienna
-    * Europe/Vilnius
-    * Europe/Volgograd
-    * Europe/Warsaw
-    * Europe/Zagreb
-    * Europe/Zaporozhye
-    * Europe/Zurich
-    * Factory
-    * GB
-    * GB-Eire
-    * GMT
-    * GMT+0
-    * GMT-0
-    * GMT0
-    * Greenwich
-    * HST
-    * Hongkong
-    * Iceland
-    * Indian/Antananarivo
-    * Indian/Chagos
-    * Indian/Christmas
-    * Indian/Cocos
-    * Indian/Comoro
-    * Indian/Kerguelen
-    * Indian/Mahe
-    * Indian/Maldives
-    * Indian/Mauritius
-    * Indian/Mayotte
-    * Indian/Reunion
-    * Iran
-    * Israel
-    * Jamaica
-    * Japan
-    * Kwajalein
-    * Libya
-    * MET
-    * MST
-    * MST7MDT
-    * Mexico/BajaNorte
-    * Mexico/BajaSur
-    * Mexico/General
-    * NZ
-    * NZ-CHAT
-    * Navajo
-    * PRC
-    * PST8PDT
-    * Pacific/Apia
-    * Pacific/Auckland
-    * Pacific/Bougainville
-    * Pacific/Chatham
-    * Pacific/Chuuk
-    * Pacific/Easter
-    * Pacific/Efate
-    * Pacific/Enderbury
-    * Pacific/Fakaofo
-    * Pacific/Fiji
-    * Pacific/Funafuti
-    * Pacific/Galapagos
-    * Pacific/Gambier
-    * Pacific/Guadalcanal
-    * Pacific/Guam
-    * Pacific/Honolulu
-    * Pacific/Johnston
-    * Pacific/Kiritimati
-    * Pacific/Kosrae
-    * Pacific/Kwajalein
-    * Pacific/Majuro
-    * Pacific/Marquesas
-    * Pacific/Midway
-    * Pacific/Nauru
-    * Pacific/Niue
-    * Pacific/Norfolk
-    * Pacific/Noumea
-    * Pacific/Pago_Pago
-    * Pacific/Palau
-    * Pacific/Pitcairn
-    * Pacific/Pohnpei
-    * Pacific/Ponape
-    * Pacific/Port_Moresby
-    * Pacific/Rarotonga
-    * Pacific/Saipan
-    * Pacific/Samoa
-    * Pacific/Tahiti
-    * Pacific/Tarawa
-    * Pacific/Tongatapu
-    * Pacific/Truk
-    * Pacific/Wake
-    * Pacific/Wallis
-    * Pacific/Yap
-    * Poland
-    * Portugal
-    * ROC
-    * ROK
-    * Singapore
-    * Turkey
-    * UCT
-    * US/Alaska
-    * US/Aleutian
-    * US/Arizona
-    * US/Central
-    * US/East-Indiana
-    * US/Eastern
-    * US/Hawaii
-    * US/Indiana-Starke
-    * US/Michigan
-    * US/Mountain
-    * US/Pacific
-    * US/Samoa
-    * UTC
-    * Universal
-    * W-SU
-    * WET
-    * Zulu
+
+    * ``Africa/Abidjan``
+    * ``Africa/Accra``
+    * ``Africa/Addis_Ababa``
+    * ``Africa/Algiers``
+    * ``Africa/Asmara``
+    * ``Africa/Asmera``
+    * ``Africa/Bamako``
+    * ``Africa/Bangui``
+    * ``Africa/Banjul``
+    * ``Africa/Bissau``
+    * ``Africa/Blantyre``
+    * ``Africa/Brazzaville``
+    * ``Africa/Bujumbura``
+    * ``Africa/Cairo``
+    * ``Africa/Casablanca``
+    * ``Africa/Ceuta``
+    * ``Africa/Conakry``
+    * ``Africa/Dakar``
+    * ``Africa/Dar_es_Salaam``
+    * ``Africa/Djibouti``
+    * ``Africa/Douala``
+    * ``Africa/El_Aaiun``
+    * ``Africa/Freetown``
+    * ``Africa/Gaborone``
+    * ``Africa/Harare``
+    * ``Africa/Johannesburg``
+    * ``Africa/Juba``
+    * ``Africa/Kampala``
+    * ``Africa/Khartoum``
+    * ``Africa/Kigali``
+    * ``Africa/Kinshasa``
+    * ``Africa/Lagos``
+    * ``Africa/Libreville``
+    * ``Africa/Lome``
+    * ``Africa/Luanda``
+    * ``Africa/Lubumbashi``
+    * ``Africa/Lusaka``
+    * ``Africa/Malabo``
+    * ``Africa/Maputo``
+    * ``Africa/Maseru``
+    * ``Africa/Mbabane``
+    * ``Africa/Mogadishu``
+    * ``Africa/Monrovia``
+    * ``Africa/Nairobi``
+    * ``Africa/Ndjamena``
+    * ``Africa/Niamey``
+    * ``Africa/Nouakchott``
+    * ``Africa/Ouagadougou``
+    * ``Africa/Porto-Novo``
+    * ``Africa/Sao_Tome``
+    * ``Africa/Timbuktu``
+    * ``Africa/Tripoli``
+    * ``Africa/Tunis``
+    * ``Africa/Windhoek``
+    * ``America/Adak``
+    * ``America/Anchorage``
+    * ``America/Anguilla``
+    * ``America/Antigua``
+    * ``America/Araguaina``
+    * ``America/Argentina/Buenos_Aires``
+    * ``America/Argentina/Catamarca``
+    * ``America/Argentina/ComodRivadavia``
+    * ``America/Argentina/Cordoba``
+    * ``America/Argentina/Jujuy``
+    * ``America/Argentina/La_Rioja``
+    * ``America/Argentina/Mendoza``
+    * ``America/Argentina/Rio_Gallegos``
+    * ``America/Argentina/Salta``
+    * ``America/Argentina/San_Juan``
+    * ``America/Argentina/San_Luis``
+    * ``America/Argentina/Tucuman``
+    * ``America/Argentina/Ushuaia``
+    * ``America/Aruba``
+    * ``America/Asuncion``
+    * ``America/Atikokan``
+    * ``America/Atka``
+    * ``America/Bahia``
+    * ``America/Bahia_Banderas``
+    * ``America/Barbados``
+    * ``America/Belem``
+    * ``America/Belize``
+    * ``America/Blanc-Sablon``
+    * ``America/Boa_Vista``
+    * ``America/Bogota``
+    * ``America/Boise``
+    * ``America/Buenos_Aires``
+    * ``America/Cambridge_Bay``
+    * ``America/Campo_Grande``
+    * ``America/Cancun``
+    * ``America/Caracas``
+    * ``America/Catamarca``
+    * ``America/Cayenne``
+    * ``America/Cayman``
+    * ``America/Chicago``
+    * ``America/Chihuahua``
+    * ``America/Coral_Harbour``
+    * ``America/Cordoba``
+    * ``America/Costa_Rica``
+    * ``America/Creston``
+    * ``America/Cuiaba``
+    * ``America/Curacao``
+    * ``America/Danmarkshavn``
+    * ``America/Dawson``
+    * ``America/Dawson_Creek``
+    * ``America/Denver``
+    * ``America/Detroit``
+    * ``America/Dominica``
+    * ``America/Edmonton``
+    * ``America/Eirunepe``
+    * ``America/El_Salvador``
+    * ``America/Ensenada``
+    * ``America/Fort_Nelson``
+    * ``America/Fort_Wayne``
+    * ``America/Fortaleza``
+    * ``America/Glace_Bay``
+    * ``America/Godthab``
+    * ``America/Goose_Bay``
+    * ``America/Grand_Turk``
+    * ``America/Grenada``
+    * ``America/Guadeloupe``
+    * ``America/Guatemala``
+    * ``America/Guayaquil``
+    * ``America/Guyana``
+    * ``America/Halifax``
+    * ``America/Havana``
+    * ``America/Hermosillo``
+    * ``America/Indiana/Indianapolis``
+    * ``America/Indiana/Knox``
+    * ``America/Indiana/Marengo``
+    * ``America/Indiana/Petersburg``
+    * ``America/Indiana/Tell_City``
+    * ``America/Indiana/Vevay``
+    * ``America/Indiana/Vincennes``
+    * ``America/Indiana/Winamac``
+    * ``America/Indianapolis``
+    * ``America/Inuvik``
+    * ``America/Iqaluit``
+    * ``America/Jamaica``
+    * ``America/Jujuy``
+    * ``America/Juneau``
+    * ``America/Kentucky/Louisville``
+    * ``America/Kentucky/Monticello``
+    * ``America/Knox_IN``
+    * ``America/Kralendijk``
+    * ``America/La_Paz``
+    * ``America/Lima``
+    * ``America/Los_Angeles``
+    * ``America/Louisville``
+    * ``America/Lower_Princes``
+    * ``America/Maceio``
+    * ``America/Managua``
+    * ``America/Manaus``
+    * ``America/Marigot``
+    * ``America/Martinique``
+    * ``America/Matamoros``
+    * ``America/Mazatlan``
+    * ``America/Mendoza``
+    * ``America/Menominee``
+    * ``America/Merida``
+    * ``America/Metlakatla``
+    * ``America/Mexico_City``
+    * ``America/Miquelon``
+    * ``America/Moncton``
+    * ``America/Monterrey``
+    * ``America/Montevideo``
+    * ``America/Montreal``
+    * ``America/Montserrat``
+    * ``America/Nassau``
+    * ``America/New_York``
+    * ``America/Nipigon``
+    * ``America/Nome``
+    * ``America/Noronha``
+    * ``America/North_Dakota/Beulah``
+    * ``America/North_Dakota/Center``
+    * ``America/North_Dakota/New_Salem``
+    * ``America/Nuuk``
+    * ``America/Ojinaga``
+    * ``America/Panama``
+    * ``America/Pangnirtung``
+    * ``America/Paramaribo``
+    * ``America/Phoenix``
+    * ``America/Port-au-Prince``
+    * ``America/Port_of_Spain``
+    * ``America/Porto_Acre``
+    * ``America/Porto_Velho``
+    * ``America/Puerto_Rico``
+    * ``America/Punta_Arenas``
+    * ``America/Rainy_River``
+    * ``America/Rankin_Inlet``
+    * ``America/Recife``
+    * ``America/Regina``
+    * ``America/Resolute``
+    * ``America/Rio_Branco``
+    * ``America/Rosario``
+    * ``America/Santa_Isabel``
+    * ``America/Santarem``
+    * ``America/Santiago``
+    * ``America/Santo_Domingo``
+    * ``America/Sao_Paulo``
+    * ``America/Scoresbysund``
+    * ``America/Shiprock``
+    * ``America/Sitka``
+    * ``America/St_Barthelemy``
+    * ``America/St_Johns``
+    * ``America/St_Kitts``
+    * ``America/St_Lucia``
+    * ``America/St_Thomas``
+    * ``America/St_Vincent``
+    * ``America/Swift_Current``
+    * ``America/Tegucigalpa``
+    * ``America/Thule``
+    * ``America/Thunder_Bay``
+    * ``America/Tijuana``
+    * ``America/Toronto``
+    * ``America/Tortola``
+    * ``America/Vancouver``
+    * ``America/Virgin``
+    * ``America/Whitehorse``
+    * ``America/Winnipeg``
+    * ``America/Yakutat``
+    * ``America/Yellowknife``
+    * ``Antarctica/Casey``
+    * ``Antarctica/Davis``
+    * ``Antarctica/DumontDUrville``
+    * ``Antarctica/Macquarie``
+    * ``Antarctica/Mawson``
+    * ``Antarctica/McMurdo``
+    * ``Antarctica/Palmer``
+    * ``Antarctica/Rothera``
+    * ``Antarctica/South_Pole``
+    * ``Antarctica/Syowa``
+    * ``Antarctica/Troll``
+    * ``Antarctica/Vostok``
+    * ``Arctic/Longyearbyen``
+    * ``Asia/Aden``
+    * ``Asia/Almaty``
+    * ``Asia/Amman``
+    * ``Asia/Anadyr``
+    * ``Asia/Aqtau``
+    * ``Asia/Aqtobe``
+    * ``Asia/Ashgabat``
+    * ``Asia/Ashkhabad``
+    * ``Asia/Atyrau``
+    * ``Asia/Baghdad``
+    * ``Asia/Bahrain``
+    * ``Asia/Baku``
+    * ``Asia/Bangkok``
+    * ``Asia/Barnaul``
+    * ``Asia/Beirut``
+    * ``Asia/Bishkek``
+    * ``Asia/Brunei``
+    * ``Asia/Calcutta``
+    * ``Asia/Chita``
+    * ``Asia/Choibalsan``
+    * ``Asia/Chongqing``
+    * ``Asia/Chungking``
+    * ``Asia/Colombo``
+    * ``Asia/Dacca``
+    * ``Asia/Damascus``
+    * ``Asia/Dhaka``
+    * ``Asia/Dili``
+    * ``Asia/Dubai``
+    * ``Asia/Dushanbe``
+    * ``Asia/Famagusta``
+    * ``Asia/Gaza``
+    * ``Asia/Harbin``
+    * ``Asia/Hebron``
+    * ``Asia/Ho_Chi_Minh``
+    * ``Asia/Hong_Kong``
+    * ``Asia/Hovd``
+    * ``Asia/Irkutsk``
+    * ``Asia/Istanbul``
+    * ``Asia/Jakarta``
+    * ``Asia/Jayapura``
+    * ``Asia/Jerusalem``
+    * ``Asia/Kabul``
+    * ``Asia/Kamchatka``
+    * ``Asia/Karachi``
+    * ``Asia/Kashgar``
+    * ``Asia/Kathmandu``
+    * ``Asia/Katmandu``
+    * ``Asia/Khandyga``
+    * ``Asia/Kolkata``
+    * ``Asia/Krasnoyarsk``
+    * ``Asia/Kuala_Lumpur``
+    * ``Asia/Kuching``
+    * ``Asia/Kuwait``
+    * ``Asia/Macao``
+    * ``Asia/Macau``
+    * ``Asia/Magadan``
+    * ``Asia/Makassar``
+    * ``Asia/Manila``
+    * ``Asia/Muscat``
+    * ``Asia/Nicosia``
+    * ``Asia/Novokuznetsk``
+    * ``Asia/Novosibirsk``
+    * ``Asia/Omsk``
+    * ``Asia/Oral``
+    * ``Asia/Phnom_Penh``
+    * ``Asia/Pontianak``
+    * ``Asia/Pyongyang``
+    * ``Asia/Qatar``
+    * ``Asia/Qostanay``
+    * ``Asia/Qyzylorda``
+    * ``Asia/Rangoon``
+    * ``Asia/Riyadh``
+    * ``Asia/Saigon``
+    * ``Asia/Sakhalin``
+    * ``Asia/Samarkand``
+    * ``Asia/Seoul``
+    * ``Asia/Shanghai``
+    * ``Asia/Singapore``
+    * ``Asia/Srednekolymsk``
+    * ``Asia/Taipei``
+    * ``Asia/Tashkent``
+    * ``Asia/Tbilisi``
+    * ``Asia/Tehran``
+    * ``Asia/Tel_Aviv``
+    * ``Asia/Thimbu``
+    * ``Asia/Thimphu``
+    * ``Asia/Tokyo``
+    * ``Asia/Tomsk``
+    * ``Asia/Ujung_Pandang``
+    * ``Asia/Ulaanbaatar``
+    * ``Asia/Ulan_Bator``
+    * ``Asia/Urumqi``
+    * ``Asia/Ust-Nera``
+    * ``Asia/Vientiane``
+    * ``Asia/Vladivostok``
+    * ``Asia/Yakutsk``
+    * ``Asia/Yangon``
+    * ``Asia/Yekaterinburg``
+    * ``Asia/Yerevan``
+    * ``Atlantic/Azores``
+    * ``Atlantic/Bermuda``
+    * ``Atlantic/Canary``
+    * ``Atlantic/Cape_Verde``
+    * ``Atlantic/Faeroe``
+    * ``Atlantic/Faroe``
+    * ``Atlantic/Jan_Mayen``
+    * ``Atlantic/Madeira``
+    * ``Atlantic/Reykjavik``
+    * ``Atlantic/South_Georgia``
+    * ``Atlantic/St_Helena``
+    * ``Atlantic/Stanley``
+    * ``Australia/ACT``
+    * ``Australia/Adelaide``
+    * ``Australia/Brisbane``
+    * ``Australia/Broken_Hill``
+    * ``Australia/Canberra``
+    * ``Australia/Currie``
+    * ``Australia/Darwin``
+    * ``Australia/Eucla``
+    * ``Australia/Hobart``
+    * ``Australia/LHI``
+    * ``Australia/Lindeman``
+    * ``Australia/Lord_Howe``
+    * ``Australia/Melbourne``
+    * ``Australia/NSW``
+    * ``Australia/North``
+    * ``Australia/Perth``
+    * ``Australia/Queensland``
+    * ``Australia/South``
+    * ``Australia/Sydney``
+    * ``Australia/Tasmania``
+    * ``Australia/Victoria``
+    * ``Australia/West``
+    * ``Australia/Yancowinna``
+    * ``Brazil/Acre``
+    * ``Brazil/DeNoronha``
+    * ``Brazil/East``
+    * ``Brazil/West``
+    * ``CET``
+    * ``CST6CDT``
+    * ``Canada/Atlantic``
+    * ``Canada/Central``
+    * ``Canada/Eastern``
+    * ``Canada/Mountain``
+    * ``Canada/Newfoundland``
+    * ``Canada/Pacific``
+    * ``Canada/Saskatchewan``
+    * ``Canada/Yukon``
+    * ``Chile/Continental``
+    * ``Chile/EasterIsland``
+    * ``Cuba``
+    * ``EET``
+    * ``EST``
+    * ``EST5EDT``
+    * ``Egypt``
+    * ``Eire``
+    * ``Etc/GMT``
+    * ``Etc/GMT+0``
+    * ``Etc/GMT+1``
+    * ``Etc/GMT+10``
+    * ``Etc/GMT+11``
+    * ``Etc/GMT+12``
+    * ``Etc/GMT+2``
+    * ``Etc/GMT+3``
+    * ``Etc/GMT+4``
+    * ``Etc/GMT+5``
+    * ``Etc/GMT+6``
+    * ``Etc/GMT+7``
+    * ``Etc/GMT+8``
+    * ``Etc/GMT+9``
+    * ``Etc/GMT-0``
+    * ``Etc/GMT-1``
+    * ``Etc/GMT-10``
+    * ``Etc/GMT-11``
+    * ``Etc/GMT-12``
+    * ``Etc/GMT-13``
+    * ``Etc/GMT-14``
+    * ``Etc/GMT-2``
+    * ``Etc/GMT-3``
+    * ``Etc/GMT-4``
+    * ``Etc/GMT-5``
+    * ``Etc/GMT-6``
+    * ``Etc/GMT-7``
+    * ``Etc/GMT-8``
+    * ``Etc/GMT-9``
+    * ``Etc/GMT0``
+    * ``Etc/Greenwich``
+    * ``Etc/UCT``
+    * ``Etc/UTC``
+    * ``Etc/Universal``
+    * ``Etc/Zulu``
+    * ``Europe/Amsterdam``
+    * ``Europe/Andorra``
+    * ``Europe/Astrakhan``
+    * ``Europe/Athens``
+    * ``Europe/Belfast``
+    * ``Europe/Belgrade``
+    * ``Europe/Berlin``
+    * ``Europe/Bratislava``
+    * ``Europe/Brussels``
+    * ``Europe/Bucharest``
+    * ``Europe/Budapest``
+    * ``Europe/Busingen``
+    * ``Europe/Chisinau``
+    * ``Europe/Copenhagen``
+    * ``Europe/Dublin``
+    * ``Europe/Gibraltar``
+    * ``Europe/Guernsey``
+    * ``Europe/Helsinki``
+    * ``Europe/Isle_of_Man``
+    * ``Europe/Istanbul``
+    * ``Europe/Jersey``
+    * ``Europe/Kaliningrad``
+    * ``Europe/Kiev``
+    * ``Europe/Kirov``
+    * ``Europe/Lisbon``
+    * ``Europe/Ljubljana``
+    * ``Europe/London``
+    * ``Europe/Luxembourg``
+    * ``Europe/Madrid``
+    * ``Europe/Malta``
+    * ``Europe/Mariehamn``
+    * ``Europe/Minsk``
+    * ``Europe/Monaco``
+    * ``Europe/Moscow``
+    * ``Europe/Nicosia``
+    * ``Europe/Oslo``
+    * ``Europe/Paris``
+    * ``Europe/Podgorica``
+    * ``Europe/Prague``
+    * ``Europe/Riga``
+    * ``Europe/Rome``
+    * ``Europe/Samara``
+    * ``Europe/San_Marino``
+    * ``Europe/Sarajevo``
+    * ``Europe/Saratov``
+    * ``Europe/Simferopol``
+    * ``Europe/Skopje``
+    * ``Europe/Sofia``
+    * ``Europe/Stockholm``
+    * ``Europe/Tallinn``
+    * ``Europe/Tirane``
+    * ``Europe/Tiraspol``
+    * ``Europe/Ulyanovsk``
+    * ``Europe/Uzhgorod``
+    * ``Europe/Vaduz``
+    * ``Europe/Vatican``
+    * ``Europe/Vienna``
+    * ``Europe/Vilnius``
+    * ``Europe/Volgograd``
+    * ``Europe/Warsaw``
+    * ``Europe/Zagreb``
+    * ``Europe/Zaporozhye``
+    * ``Europe/Zurich``
+    * ``Factory``
+    * ``GB``
+    * ``GB-Eire``
+    * ``GMT``
+    * ``GMT+0``
+    * ``GMT-0``
+    * ``GMT0``
+    * ``Greenwich``
+    * ``HST``
+    * ``Hongkong``
+    * ``Iceland``
+    * ``Indian/Antananarivo``
+    * ``Indian/Chagos``
+    * ``Indian/Christmas``
+    * ``Indian/Cocos``
+    * ``Indian/Comoro``
+    * ``Indian/Kerguelen``
+    * ``Indian/Mahe``
+    * ``Indian/Maldives``
+    * ``Indian/Mauritius``
+    * ``Indian/Mayotte``
+    * ``Indian/Reunion``
+    * ``Iran``
+    * ``Israel``
+    * ``Jamaica``
+    * ``Japan``
+    * ``Kwajalein``
+    * ``Libya``
+    * ``MET``
+    * ``MST``
+    * ``MST7MDT``
+    * ``Mexico/BajaNorte``
+    * ``Mexico/BajaSur``
+    * ``Mexico/General``
+    * ``NZ``
+    * ``NZ-CHAT``
+    * ``Navajo``
+    * ``PRC``
+    * ``PST8PDT``
+    * ``Pacific/Apia``
+    * ``Pacific/Auckland``
+    * ``Pacific/Bougainville``
+    * ``Pacific/Chatham``
+    * ``Pacific/Chuuk``
+    * ``Pacific/Easter``
+    * ``Pacific/Efate``
+    * ``Pacific/Enderbury``
+    * ``Pacific/Fakaofo``
+    * ``Pacific/Fiji``
+    * ``Pacific/Funafuti``
+    * ``Pacific/Galapagos``
+    * ``Pacific/Gambier``
+    * ``Pacific/Guadalcanal``
+    * ``Pacific/Guam``
+    * ``Pacific/Honolulu``
+    * ``Pacific/Johnston``
+    * ``Pacific/Kiritimati``
+    * ``Pacific/Kosrae``
+    * ``Pacific/Kwajalein``
+    * ``Pacific/Majuro``
+    * ``Pacific/Marquesas``
+    * ``Pacific/Midway``
+    * ``Pacific/Nauru``
+    * ``Pacific/Niue``
+    * ``Pacific/Norfolk``
+    * ``Pacific/Noumea``
+    * ``Pacific/Pago_Pago``
+    * ``Pacific/Palau``
+    * ``Pacific/Pitcairn``
+    * ``Pacific/Pohnpei``
+    * ``Pacific/Ponape``
+    * ``Pacific/Port_Moresby``
+    * ``Pacific/Rarotonga``
+    * ``Pacific/Saipan``
+    * ``Pacific/Samoa``
+    * ``Pacific/Tahiti``
+    * ``Pacific/Tarawa``
+    * ``Pacific/Tongatapu``
+    * ``Pacific/Truk``
+    * ``Pacific/Wake``
+    * ``Pacific/Wallis``
+    * ``Pacific/Yap``
+    * ``Poland``
+    * ``Portugal``
+    * ``ROC``
+    * ``ROK``
+    * ``Singapore``
+    * ``Turkey``
+    * ``UCT``
+    * ``US/Alaska``
+    * ``US/Aleutian``
+    * ``US/Arizona``
+    * ``US/Central``
+    * ``US/East-Indiana``
+    * ``US/Eastern``
+    * ``US/Hawaii``
+    * ``US/Indiana-Starke``
+    * ``US/Michigan``
+    * ``US/Mountain``
+    * ``US/Pacific``
+    * ``US/Samoa``
+    * ``UTC``
+    * ``Universal``
+    * ``W-SU``
+    * ``WET``
+    * ``Zulu``
     """
 
     def __init__(
@@ -673,7 +803,7 @@ class SetNPodTimeZoneInput:
     ):
         """Constructs a new input object to set timezone
 
-        :param time_zone: The time zone to set
+        :param time_zone: The time zone to set as a timezone string
         :type time_zone: str
         """
 
@@ -733,17 +863,32 @@ class NPodFilter:
 
     def __init__(
             self,
-            uuid: UuidFilter = None,
+            uuid: UUIDFilter = None,
             name: StringFilter = None,
+            npod_group_uuid: UUIDFilter = None,
+            npod_template_uuid: UUIDFilter = None,
+            npod_base_template_uuid: UUIDFilter = None,
+            spu_serial: StringFilter = None,
             and_filter=None,
             or_filter=None
     ):
         """Constructs a new filter object
 
         :param uuid: Filter based on nPod unique identifiers
-        :type uuid: UuidFilter, optional
+        :type uuid: UUIDFilter, optional
         :param name: Filter based on nPod name
         :type name: StringFilter, optional
+        :param npod_group_uuid: Filter based on the nPod group unique identifier
+        :type npod_group_uuid: UUIDFilter, optional
+        :param npod_template_uuid: Filter based on the nPod template associated
+            with the nPod
+        :type npod_template_uuid: UUIDFilter, optional
+        :param npod_base_template_uuid: Filter based on the base nPod template
+            associated with the nPod
+        :type npod_base_template_uuid: UUIDFilter, optional
+        :param spu_serial: Filter based on a SPU serial number that is part of
+            the nPod
+        :type spu_serial: StringFilter, optional
         :param and_filter: Concatenate another filter with a logical AND
         :type and_filter: DataCenterFilter, optional
         :param or_filter: Concatenate another filter with a logical OR
@@ -752,11 +897,15 @@ class NPodFilter:
 
         self.__uuid = uuid
         self.__name = name
+        self.__npod_group_uuid = npod_group_uuid
+        self.__npod_template_uuid = npod_template_uuid
+        self.__npod_base_template_uuid = npod_base_template_uuid
+        self.__spu_serial = spu_serial
         self.__and = and_filter
         self.__or = or_filter
 
     @property
-    def uuid(self) -> UuidFilter:
+    def uuid(self) -> UUIDFilter:
         """Filter based on nPod unique identifiers"""
         return self.__uuid
 
@@ -764,6 +913,26 @@ class NPodFilter:
     def name(self) -> StringFilter:
         """Filter based on nPod name"""
         return self.__name
+
+    @property
+    def npod_group_uuid(self) -> UUIDFilter:
+        """Filter based on the nPod group unique identifier"""
+        return self.__npod_group_uuid
+
+    @property
+    def npod_template_uuid(self) -> UUIDFilter:
+        """Filter based on the nPod template associated with the nPod"""
+        return self.__npod_template_uuid
+
+    @property
+    def npod_base_template_uuid(self) -> UUIDFilter:
+        """Filter based on the base nPod template associated with the nPod"""
+        return self.__npod_base_template_uuid
+
+    @property
+    def spu_serial(self) -> StringFilter:
+        """Filter based on a SPU serial number that is part of the nPod"""
+        return self.__spu_serial
 
     @property
     def and_filter(self):
@@ -780,6 +949,10 @@ class NPodFilter:
         result = dict()
         result["uuid"] = self.uuid
         result["name"] = self.name
+        result["nPodGroupUUID"] = self.npod_group_uuid
+        result["nPodTemplateUUID"] = self.npod_template_uuid
+        result["nPodBaseTemplateUUID"] = self.npod_base_template_uuid
+        result["spuSerial"] = self.spu_serial
         result["and"] = self.and_filter
         result["or"] = self.or_filter
         return result
@@ -789,12 +962,12 @@ class IPInfoConfigInput:
     """An input object to configure SPU networking
 
      SPU network configuration is determined at nPod creation. Customers have
-     the option to use static IP addresses for the control network or DHCP.
+     the option to use static IP addresses for the data network or DHCP.
      When using DHCP, it is recommended to use static IP reservations for the
      data networks.
 
      Customers can choose between using two separate networks for the data
-     network or a link aggregation (LACP). When using link aggregation, two
+     network or a link aggregation. When using link aggregation, two
      interface names are expected, one if not.
 
      When specifying an IP address, it can be either IPv4 or IPv6 and supports
@@ -820,14 +993,15 @@ class IPInfoConfigInput:
         """Constructs a new input object for configuring SPU network config
 
         :param dhcp: Specifies if DHCP should be used for the data network. If
-            set to ``True``, fields ``address``, ``netmask_bits``, ``gateway`` are
-            optional. If set to ``False``, these values become mandatory.
+            set to ``True``, fields ``address``, ``netmask_bits``, ``gateway``
+            should not be specified. If set to ``False``, these values become
+            mandatory.
         :type dhcp: bool
         :param bond_mode: Specifies the link aggregation mode for the data
-            network ports. If not set to ``None``, the ``interfaces`` parameter must
-            be an array that lists the names of both interfaces:
-            `['enP8p1s0f0np0', 'enP8p1s0f1np1']`, if set to ``None`` the specific
-            interface must be identified by its name.
+            network ports. If not set to ``None``, the ``interfaces`` parameter
+            must be an array that lists the names of both interfaces:
+            ``['enP8p1s0f0np0', 'enP8p1s0f1np1']``, if set to ``None`` the
+            specific interface must be identified by its name.
         :type bond_mode: BondType
         :param interfaces: List of interfaces that shall be configured with
             this object. If ``bond_mode`` is set to ``None`` a single interface
@@ -837,26 +1011,28 @@ class IPInfoConfigInput:
         :type interfaces: [str]
         :param address: The IPv4 or IPv6 address for the data network interface.
             If CIDR format is used, the ``netmask_bits`` value is ignored. If
-            ``DHCP`` is set to ``True``, this field must not be specified.
+            ``dhcp`` is set to ``True``, this field must not be specified.
         :type address: str, optional
-        :param netmask_bits: The network mask in bits. If ``address`` is specified
-            in CIDR format, this value will be ignored, otherwise this is a
-            mandatory field.
+        :param netmask_bits: The network mask in bits. If ``address`` is
+            specified in CIDR format, this value will be ignored, otherwise
+            this is a mandatory field.
         :type netmask_bits: int, optional
         :param gateway: The network gateway address for the network interface.
-            If ``dhcp`` is set to ``True`` this field is optional and ignored. If
-            static IP address is used, this field is mandatory.
+            If ``dhcp`` is set to ``True`` this field is optional and ignored.
+            If static IP address is used, this field is mandatory.
         :type gateway: str, optional
         :param half_duplex: Specifies if the network interface shall use
-            half duplex. By default, this field should be set to ``False``.
+            half duplex. By default, this field is set to ``False`` and is the
+            recommended setting.
         :type half_duplex: bool, optional
         :param speed_mb: Allows setting the interface speed to a specific
-            value. This field is ignored when ``locked_speed`` is set to ``False``
-            (default).
+            value. This field is ignored when ``locked_speed`` is set to
+            ``False`` (default). It is not recommended to set this value.
         :type speed_mb: int, optional
         :param locked_speed: Allows setting the interface speed and the
             duplex mode to specific values. If set to ``True`` the values of
-            ``speed_mb`` and ``half_duplex`` are enforced.
+            ``speed_mb`` and ``half_duplex`` are enforced. It is recommended to
+            set this value to ``False``.
         :type locked_speed: bool, optional
         :param mtu: Allows setting the maximum transfer unit (MTU) for the
             interface. By default an MTU of `1500` is used.
@@ -865,7 +1041,7 @@ class IPInfoConfigInput:
             policy mode when using link aggregation. This field is ignored when
             ``bond_mode`` is set to ``None``.
         :type bond_transmit_hash_policy: BondTransmitHashPolicy, optional
-        :param bond_mii_monitor_ms: Allows alerting the default media
+        :param bond_mii_monitor_ms: Allows altering the default media
             independent interface monitoring interval. This field is ignored
             when ``bond_mode`` is set to ``None``.
         :type bond_mii_monitor_ms: int, optional
@@ -936,7 +1112,7 @@ class IPInfoConfigInput:
 
     @property
     def half_duplex(self) -> bool:
-        """Allows overwriting duplex for the interface"""
+        """Allows overwriting duplex settings for the interface"""
         return self.__half_duplex
 
     @property
@@ -977,12 +1153,13 @@ class NPodSpuInput:
     """An input object to configure SPUs for nPod creation
 
     Allows specifying SPU configuration options when creating a new nPod.
-    Configuration is mostly for network configuration.
+    Configuration is mostly for network settings.
     """
 
     def __init__(
             self,
             spu_serial: str,
+            spu_name: str = None,
             spu_data_ips: [IPInfoConfigInput] = None
     ):
         """Constructs a new NPodSpuInput object
@@ -992,17 +1169,22 @@ class NPodSpuInput:
 
         :param spu_serial: Specifies the SPU serial number
         :type spu_serial: str
+        :param spu_name: A human readable name for the SPU
+        :type spu_name: str, optional
         :param spu_data_ips: Allows configuring the SPUs network interfaces
         :type spu_data_ips: [IPInfoConfigInput], optional
         """
 
-        self.__spu_name = ""
+        self.__spu_name = spu_name
         self.__spu_serial = spu_serial
         self.__spu_data_ips = spu_data_ips
 
+        if self.__spu_name is None:
+            self.__spu_name = spu_serial
+
     @property
     def spu_name(self) -> str:
-        """Human readable name for a SPU"""
+        """Human readable name for a SPU. Defaults to SPU serial"""
         return self.__spu_name
 
     @property
@@ -1041,7 +1223,7 @@ class CreateNPodInput:
             spus: [NPodSpuInput],
             npod_template_uuid: str,
             note: str = None,
-            timezone: str = None
+            timezone: str = 'UTC'
     ):
         """Constructs a new input object to create a new nPod
 
@@ -1059,7 +1241,8 @@ class CreateNPodInput:
         :type npod_template_uuid: str
         :param note: An optional note for the new nPod
         :type note: str, optional
-        :param timezone: The timezone to be configured for all SPUs in the nPod
+        :param timezone: The timezone to be configured for all SPUs in the nPod.
+            By default the ``UTC`` timezone is used.
         :type timezone: str, optional
         """
 
@@ -1128,7 +1311,7 @@ class NPod:
     ):
         """Constructs a new nPod object
 
-        This constructor expects a dict() object from the nebulon ON API. It
+        This constructor expects a ``dict`` object from the nebulon ON API. It
         will check the returned data against the currently implemented schema
         of the SDK.
 
@@ -1137,6 +1320,7 @@ class NPod:
 
         :raises ValueError: An error if illegal data is returned from the server
         """
+
         self.__uuid = read_value(
             "uuid", response, str, True)
         self.__name = read_value(
@@ -1162,7 +1346,11 @@ class NPod:
         self.__update_history = read_value(
             "updateHistory", response, UpdateHistory, False)
         self.__npod_template_uuid = read_value(
-            "nPodTemplate.uid", response, str, False)
+            "nPodTemplate.uuid", response, str, False)
+        self.__creation_time = read_value(
+            "creationTime", response, datetime, True)
+        self.__recommended_package = read_value(
+            "recommendedPackage", response, NPodRecommendedPackage, False)
 
     @property
     def uuid(self) -> str:
@@ -1229,6 +1417,16 @@ class NPod:
         """Unique identifier for the nPod template used during nPod creation"""
         return self.__npod_template_uuid
 
+    @property
+    def creation_time(self) -> datetime:
+        """The date and time when the nPod was created"""
+        return self.__creation_time
+
+    @property
+    def recommended_package(self) -> NPodRecommendedPackage:
+        """Unique identifier for the nPod template used during nPod creation"""
+        return self.__recommended_package
+
     @staticmethod
     def fields():
         return [
@@ -1245,6 +1443,8 @@ class NPod:
             "snapshots{uuid}",
             "updateHistory{%s}" % ",".join(UpdateHistory.fields()),
             "nPodTemplate{uid}"
+            "creationTime",
+            "recommendedPackage{%s}" % ",".join(NPodRecommendedPackage.fields())
         ]
 
 
@@ -1252,7 +1452,7 @@ class NPodList:
     """Paginated nPod list object
 
     Contains a list of nPod objects and information for
-    pagination. By default a single page includes a maximum of `100` items
+    pagination. By default a single page includes a maximum of ``100`` items
     unless specified otherwise in the paginated query.
 
     Consumers should always check for the property ``more`` as per default
@@ -1265,7 +1465,7 @@ class NPodList:
     ):
         """Constructs a new nPod list object
 
-        This constructor expects a dict() object from the nebulon ON API. It
+        This constructor expects a ``dict`` object from the nebulon ON API. It
         will check the returned data against the currently implemented schema
         of the SDK.
 
@@ -1331,7 +1531,7 @@ class NPodCustomDiagnostic:
     ):
         """Constructs a new NPodCustomDiagnostic object
 
-        This constructor expects a dict() object from the nebulon ON API. It
+        This constructor expects a ``dict`` object from the nebulon ON API. It
         will check the returned data against the currently implemented schema
         of the SDK.
 
@@ -1400,7 +1600,7 @@ class ExpectedNPodCapacity:
     ):
         """Constructs a new ExpectedNPodCapacity object
 
-        This constructor expects a dict() object from the nebulon ON API. It
+        This constructor expects a ``dict`` object from the nebulon ON API. It
         will check the returned data against the currently implemented schema
         of the SDK.
 
@@ -1421,6 +1621,9 @@ class ExpectedNPodCapacity:
             "totalPresentedCapacity", response, int, False)
         self.__total_vv_count = read_value(
             "totalVVCount", response, int, False)
+        # SPU Capacity information is omitted on purpose
+        # self.__spus_capacity_info = read_value(
+        #    "spusCapInfo", response, SPUCapInfo, True)
 
     @property
     def total_pd_capacity_blk(self) -> int:
@@ -1477,7 +1680,7 @@ class NPodsMixin(NebMixin):
 
         :param page: The requested page from the server. This is an optional
             argument and if omitted the server will default to returning the
-            first page with a maximum of `100` items.
+            first page with a maximum of ``100`` items.
         :type page: PageInput, optional
         :param npod_filter: A filter object to filter the nPods on the
             server. If omitted, the server will return all objects as a
@@ -1516,7 +1719,14 @@ class NPodsMixin(NebMixin):
             self,
             spus: [NPodSpuInput]
     ) -> Issues:
-        """Internal method that checks for issues during nPod creation"""
+        """Internal method that checks for issues during nPod creation
+
+        :param spus: List of SPU configurations that will be used for the new
+            nPod
+        :type spus: [NPodSpuInput], optional
+        :returns Issues: A object describing any warnings or errors that were
+            detected during nPod creation pre-flight checks.
+        """
 
         # current API expects a list of spu serial numbers
         spu_serials = [i.spu_serial for i in spus]
@@ -1541,13 +1751,8 @@ class NPodsMixin(NebMixin):
 
     def create_npod(
             self,
-            name: str,
-            npod_group_uuid: str,
-            spus: [NPodSpuInput],
-            npod_template_uuid: str,
-            note: str = None,
-            timezone: str = None,
-            ignore_warnings: bool = False
+            create_npod_input: CreateNPodInput,
+            ignore_warnings: bool = False,
     ) -> NPod:
         """Allows creation of a new nPod
 
@@ -1557,66 +1762,32 @@ class NPodsMixin(NebMixin):
         cluster, e.g. a hypervisor cluster, container platform, or clustered
         bare metal application.
 
-        :param name: Name of the new nPod
-        :type name: str
-        :param npod_group_uuid: The unique identifier of the nPod group this
-            nPod will be added to
-        :type npod_group_uuid: str
-        :param spus: List of SPU configuration information that will be used
-            in the new nPod. At least 3 SPU configuration information objects
-            must be specified
-        :type spus: [NPodSpuInput]
-        :param npod_template_uuid: The unique identifier of the nPod template
-            to use for the new nPod
-        :type npod_template_uuid: str
-        :param note: An optional note for the new nPod
-        :type note: str, optional
-        :param timezone: The timezone to be configured for all SPUs in the nPod
-        :type timezone: str, optional
-        :param ignore_warnings: If specified and set to ``True`` the nPod creation
-            will proceed even if nebulon ON reports warnings. It is advised to
-            not ignore warnings. Consequently, the default behavior is that
-            the nPod creation will fail when nebulon ON reports validation
-            errors.
+        :param create_npod_input: A parameter describing the properties of the
+            new nPod.
+        :type create_npod_input: CreateNPodInput
+        :param ignore_warnings: If specified and set to ``True`` the nPod
+            creation will proceed even if nebulon ON reports warnings. It is
+            advised to not ignore warnings. Consequently, the default behavior
+            is that the nPod creation will fail when nebulon ON reports
+            validation errors or warnings.
         :type ignore_warnings: bool, optional
 
         :returns NPod: The new nPod
 
         :raises GraphQLError: An error with the GraphQL endpoint.
-        :raises ValueError: When illegal parameters are supplied.
         :raises Exception: When nebulon ON reports validation errors or warnings
-            and the ``ignore_warnings`` parameter is not set to ``True`` or if the
-            nPod creation times out.
+            and the ``ignore_warnings`` parameter is not set to ``True`` or if
+            the nPod creation times out.
         """
 
-        # check the basics
-        if name is None or len(name) == 0:
-            raise ValueError("name must be a non-zero length utf-8 string")
-
-        if npod_group_uuid is None or len(npod_group_uuid) == 0:
-            raise ValueError("npod_group_uuid must be a valid UUID string")
-
-        if npod_template_uuid is None or len(npod_template_uuid) == 0:
-            raise ValueError("npod_template_uuid must be a valid UUID string")
-
-        if len(spus) == 2:
-            raise ValueError("spus must be a list of exactly 1, 3 or more")
-
         # check for potential issues that nebulon ON predicts
-        issues = self.__get_new_pod_issues(spus=spus)
+        issues = self.__get_new_pod_issues(spus=create_npod_input.spus)
         issues.assert_no_issues(ignore_warnings=ignore_warnings)
 
         # setup query parameters for npod creation
         parameters = dict()
         parameters["input"] = GraphQLParam(
-            CreateNPodInput(
-                name=name,
-                npod_group_uuid=npod_group_uuid,
-                spus=spus,
-                npod_template_uuid=npod_template_uuid,
-                note=note,
-                timezone=timezone
-            ),
+            create_npod_input,
             "CreateNPodInput",
             True
         )
@@ -1649,7 +1820,8 @@ class NPodsMixin(NebMixin):
             )
 
             # if there is no record in the cloud wait a few more seconds
-            # this case should not exist. TODO: Remove in next version.
+            # this case should not exist, but is a safety measure for a
+            # potential race condition
             if len(recipes.items) == 0:
                 continue
 
@@ -1659,14 +1831,24 @@ class NPodsMixin(NebMixin):
             if recipe.state == RecipeState.Failed:
                 raise Exception(f"nPod creation failed: {recipe.status}")
 
+            if recipe.state == RecipeState.Timeout:
+                raise Exception(f"nPod creation timeout: {recipe.status}")
+
+            if recipe.state == RecipeState.Cancelled:
+                raise Exception(f"nPod creation cancelled: {recipe.status}")
+
             if recipe.state == RecipeState.Completed:
                 npod_list = self.get_npods(
                     npod_filter=NPodFilter(
-                        uuid=UuidFilter(
+                        uuid=UUIDFilter(
                             equals=npod_uuid
                         )
                     )
                 )
+
+                if npod_list.filtered_count == 0:
+                    continue
+
                 return npod_list.items[0]
 
             # Wait time remaining until timeout
@@ -1688,28 +1870,39 @@ class NPodsMixin(NebMixin):
         erased. This renders all data in the nPod unrecoverable. This operation
         is irreversible.
 
+        > [!NOTE]
+        > This is a non-blocking call and does not wait until the delete
+        > operation is complete. SPUs may not be accessible immediately after
+        > the deletion.
+
+        Optionally, users can make use of the ``secure_erase`` parameter that
+        will trigger a secure erase of every SSD in the nPod. This utilizes the
+        manufacturer-specific software to securely delete any data on drives
+        without damaging or expediting wear. Secure erase will require several
+        minutes to complete.
+
+        All data is encrypted before written to the backend drives and deleting
+        the disk encryption key during the nPod deletion will make all data
+        permanently and irreversibly unreadable. The secure erase functionality
+        is only provided to support organizational processes.
+
+        > [!IMPORTANT]
+        > This operation will permanently erase data and the data cannot be
+        > recovered. Use this method with caution.
+
         :param uuid: The unique identifier of the nPod to delete.
         :type uuid: str
         :param secure_erase: Forces a secure wipe of the nPod. While this is not
-            required in most cases as nPod deletion will destroy the encryption
-            keys and render data unreadable, it allows to explicitly overwrite
-            data on server SSDs. Only use this flag when decommissioning
-            storage as the secure_wipe procedure will take some time.
+            required as nPod deletion will destroy the encryption keys and
+            render data unreadable, it allows to explicitly overwrite data on
+            server SSDs. Only use this flag when decommissioning storage as the
+            secure_wipe procedure will take some time.
         :type secure_erase: bool, optional
 
         :raises GraphQLError: An error with the GraphQL endpoint.
-        :raises ValueError: When illegal parameters are supplied.
         :raises Exception: When there were issues delivering the security token
             to affected SPUs.
-
-        .. warnings also::
-            This operation will permanently erase data and the data cannot be
-            recovered.
         """
-
-        # check the basics
-        if uuid is None or len(uuid) == 0:
-            raise ValueError("uuid must be a valid UUID string")
 
         # setup query parameters
         parameters = dict()
@@ -1732,42 +1925,34 @@ class NPodsMixin(NebMixin):
         )
 
         # convert to object and deliver token
-        # TODO: Implement waiting for all contained SPUs to become available
+        # TODO: Implement recipe engine v2 that waits for SPU availability
         token_response = TokenResponse(response)
         token_response.deliver_token()
 
     def set_npod_timezone(
             self,
             uuid: str,
-            timezone: str = "UTC"
+            set_npod_timezone_input: SetNPodTimeZoneInput
     ):
         """Allows setting the timezone for all SPUs in an nPod
 
         :param uuid: The unique identifier of the nPod that is being modified.
         :type uuid: str
-        :param timezone: The target timezone for the nPod. Refer to the
-            ``Timezone`` enumeration for available options. By default ``UTC`` is
-            used for the timezone.
-        :type timezone: str, optional
+        :param set_npod_timezone_input: A parameter describing the timezone
+            information that shall be applied to the SPUs in the nPod.
+        :type set_npod_timezone_input: SetNPodTimeZoneInput
 
         :raises GraphQLError: An error with the GraphQL endpoint.
-        :raises ValueError: When illegal parameters are supplied.
         :raises Exception: When there were issues delivering the security token
             to affected SPUs.
         """
-
-        # check the basics
-        if uuid is None or len(uuid) == 0:
-            raise ValueError("uuid must be a valid UUID string")
 
         # setup query parameters
         parameters = dict()
         parameters["uuid"] = GraphQLParam(
             uuid, "UUID", True)
         parameters["input"] = GraphQLParam(
-            SetNPodTimeZoneInput(
-                time_zone=timezone
-            ),
+            set_npod_timezone_input,
             "SetNPodTimeZoneInput",
             True
         )
@@ -1783,45 +1968,36 @@ class NPodsMixin(NebMixin):
         token_response = TokenResponse(response)
         token_response.deliver_token()
 
-    def send_npod_debug_info(
+    def collect_debug_info(
             self,
-            uuid: str,
-            note: str = None
+            debug_info_input: DebugInfoInput
     ):
         """Allows sending verbose diagnostic information to nebulon ON
 
         In cases where more in-depth diagnostic information is required to
         resolve customer issues, this method allows capturing and uploading
-        verbose diagnostic information from SPUs in the specified nPod through
-        a secure channel to nebulon ON.
+        verbose diagnostic information.
 
-        :param uuid: The unique identifier of the affected nPod.
-        :type uuid: str
-        :param note: Allows specifying additional textual information that is
-            added to the diagnostic bundle. This allows a user to provide
-            accompanying information, e.g. to describe an observed issue.
-        :type note: str, optional
+        :param debug_info_input: A parameter that describes what information to
+            collect from which infrastructure.
+        :type debug_info_input: DebugInfoInput
 
         :raises GraphQLError: An error with the GraphQL endpoint.
-        :raises ValueError: When illegal parameters are supplied.
         :raises Exception: When there were issues delivering the security token
             to affected SPUs.
         """
 
-        # check the basics
-        if uuid is None or len(uuid) == 0:
-            raise ValueError("uuid must be a valid UUID string")
-
         # setup query parameters
         parameters = dict()
-        parameters["podUID"] = GraphQLParam(
-            uuid, "String", False)
-        parameters["note"] = GraphQLParam(
-            note, "String", False)
+        parameters["input"] = GraphQLParam(
+            debug_info_input,
+            "DebugInfoInput",
+            True
+        )
 
         # make the request
         response = self._mutation(
-            name="sendDebugInfo",
+            name="collectDebugInfo",
             params=parameters,
             fields=TokenResponse.fields()
         )

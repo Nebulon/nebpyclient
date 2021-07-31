@@ -1,5 +1,5 @@
 #
-# Copyright 2020 Nebulon, Inc.
+# Copyright 2021 Nebulon, Inc.
 # All Rights Reserved.
 #
 # DISCLAIMER: THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND,
@@ -13,18 +13,22 @@
 
 from .graphqlclient import GraphQLParam, NebMixin
 from .common import PageInput, NebEnum, read_value
-from .filters import UuidFilter, StringFilter
+from .filters import UUIDFilter, StringFilter
 from .sorting import SortDirection
 
 
 class CommunicationMethodType(NebEnum):
     """Defines customer communication preferences"""
 
-    EMAIL = "Email"
-    """Prefer communication via E-Mail"""
+    Email = "Email"
+    """
+    Prefer communication via E-Mail
+    """
 
-    PHONE = "Phone"
-    """Prefer communication via Phone"""
+    Phone = "Phone"
+    """
+    Prefer communication via Phone
+    """
 
 
 class AddressInput:
@@ -39,12 +43,12 @@ class AddressInput:
             self,
             house_number: str,
             address1: str,
-            address2: str,
-            address3: str,
             city: str,
-            state_province_code: str,
             postal_code: str,
-            country_code: str
+            country_code: str,
+            state_province_code: str = None,
+            address2: str = None,
+            address3: str = None,
     ):
         """Constructs a new address object for a datacenter
 
@@ -52,15 +56,15 @@ class AddressInput:
         :type house_number: str
         :param address1: Address field 1, typically the street address
         :type address1: str
-        :param address2: Address field 2, if n/a provide an empty string
-        :type address2: str
-        :param address3: Address field 3, if n/a provide an empty string
-        :type address3: str
+        :param address2: Address field 2
+        :type address2: str, optional
+        :param address3: Address field 3
+        :type address3: str, optional
         :param city: City name
         :type city: str
-        :param state_province_code: The state or province code if applicable
-            for the specified country. If n/a provide an empty string
-        :type state_province_code: str
+        :param state_province_code: The optional state or province code if
+            applicable for the specified country.
+        :type state_province_code: str, optional
         :param postal_code: The postal code for the address
         :type postal_code: str
         :param country_code: The country code for the address
@@ -88,12 +92,12 @@ class AddressInput:
 
     @property
     def address2(self) -> str:
-        """Address field 2, if n/a provide an empty string"""
+        """Address field 2"""
         return self.__address2
 
     @property
     def address3(self) -> str:
-        """Address field 3, if n/a provide an empty string"""
+        """Address field 3"""
         return self.__address3
 
     @property
@@ -103,7 +107,7 @@ class AddressInput:
 
     @property
     def state_province_code(self) -> str:
-        """State or province code for the address"""
+        """State or province code"""
         return self.__state_province_code
 
     @property
@@ -133,7 +137,7 @@ class AddressInput:
 class ContactInput:
     """An input object to define a datacenter contact
 
-    Allows specifying contact information for a data center. This information
+    Allows specifying contact information for a datacenter. This information
     is used to contact a customer in case of infrastructure issues and to send
     replacement parts.
     """
@@ -141,9 +145,8 @@ class ContactInput:
     def __init__(
             self,
             user_uuid: str,
-            primary: bool = False,
+            primary: bool,
             communication_method: CommunicationMethodType
-            = CommunicationMethodType.EMAIL
     ):
         """Constructs a new contact information object
 
@@ -152,11 +155,12 @@ class ContactInput:
         :type user_uuid: str
         :param primary: Indicates if this contact should be the primary contact
             for a datacenter.
-        :type primary: bool, optional
+        :type primary: bool
         :param communication_method: The preferred communication type for the
             contact
-        :type communication_method: CommunicationMethodType, optional
+        :type communication_method: CommunicationMethodType
         """
+
         self.__user_uuid = user_uuid
         self.__primary = primary
         self.__communication_method = communication_method
@@ -226,7 +230,7 @@ class DataCenterFilter:
 
     def __init__(
             self,
-            uuid: UuidFilter = None,
+            uuid: UUIDFilter = None,
             name: StringFilter = None,
             and_filter=None,
             or_filter=None
@@ -238,7 +242,7 @@ class DataCenterFilter:
         options to concatenate multiple filters.
 
         :param uuid: Filter based on datacenter unique identifiers
-        :type uuid: UuidFilter, optional
+        :type uuid: UUIDFilter, optional
         :param name: Filter based on datacenter name
         :type name: StringFilter, optional
         :param and_filter: Concatenate another filter with a logical AND
@@ -253,7 +257,7 @@ class DataCenterFilter:
         self.__or = or_filter
 
     @property
-    def uuid(self) -> UuidFilter:
+    def uuid(self) -> UUIDFilter:
         """Filter based on datacenter unique identifier"""
         return self.__uuid
 
@@ -297,7 +301,7 @@ class CreateDataCenterInput:
             name: str,
             address: AddressInput,
             contacts: [ContactInput],
-            note: str = "",
+            note: str = None,
     ):
         """Constructs a new input object to create a datacenter
 
@@ -379,10 +383,11 @@ class UpdateDataCenterInput:
         :type address: AddressInput, optional
         :param contacts: New list of contacts for the datacenter. If provided,
             the list of contacts must have at least one contact. Exactly one
-            contact must be marked as primary.
+            contact must be marked as primary. This list of contacts will
+            replace the list of contacts that exist on the datacenter object.
         :type contacts: [ContactInput], optional
         :param note: The new note for the datacenter. For removing the note,
-            provide an empty str.
+            provide an empty ``str``.
         :type note: str, optional
         """
 
@@ -393,22 +398,22 @@ class UpdateDataCenterInput:
 
     @property
     def name(self) -> str:
-        """Name of the datacenter"""
+        """New name of the datacenter"""
         return self.__name
 
     @property
     def note(self) -> str:
-        """An optional note for the datacenter"""
+        """New note for the datacenter"""
         return self.__note
 
     @property
     def address(self) -> AddressInput:
-        """Postal address for the datacenter"""
+        """New postal address for the datacenter"""
         return self.__address
 
     @property
     def contacts(self) -> [ContactInput]:
-        """List of contacts for the datacenter"""
+        """New list of contacts for the datacenter"""
         return self.__contacts
 
     @property
@@ -426,7 +431,7 @@ class DeleteDataCenterInput:
 
     Allows additional options when deleting a datacenter. When cascade is
     set to ``True`` all child resources are deleted with the datacenter if
-    no hosts are associated with the datacenter.
+    no hosts are associated with them.
     """
 
     def __init__(
@@ -435,9 +440,9 @@ class DeleteDataCenterInput:
     ):
         """Constructs a new input object to delete a datacenter object
 
-        :param cascade: If set to True any child resources are deleted with
-            the datacenter if no hosts are associated with it.
-        :type cascade: bool
+        :param cascade: If set to ``True`` any child resources are deleted with
+            the datacenter if no hosts are associated with them.
+        :type cascade: bool, optional
         """
 
         self.__cascade = cascade
@@ -468,7 +473,7 @@ class Address:
     ):
         """Constructs a new address object
 
-        This constructor expects a dict() object from the nebulon ON API. It
+        This constructor expects a ``dict`` object from the nebulon ON API. It
         will check the returned data against the currently implemented schema
         of the SDK.
 
@@ -562,7 +567,7 @@ class Contact:
     ):
         """Constructs a new contact object
 
-        This constructor expects a dict() object from the nebulon ON API. It
+        This constructor expects a ``dict`` object from the nebulon ON API. It
         will check the returned data against the currently implemented schema
         of the SDK.
 
@@ -657,7 +662,7 @@ class DataCenter:
     ):
         """Constructs a new datacenter object
 
-        This constructor expects a dict() object from the nebulon ON API. It
+        This constructor expects a ``dict`` object from the nebulon ON API. It
         will check the returned data against the currently implemented schema
         of the SDK.
 
@@ -676,10 +681,10 @@ class DataCenter:
             "address", response, Address, True)
         self.__contacts = read_value(
             "contacts", response, Contact, False)
-        self.__lab_uuids = read_value(
-            "labs.uuid", response, str, False)
-        self.__lab_count = read_value(
-            "labCount", response, int, True)
+        self.__room_uuids = read_value(
+            "rooms.uuid", response, str, False)
+        self.__room_count = read_value(
+            "roomCount", response, int, True)
         self.__row_count = read_value(
             "rowCount", response, int, True)
         self.__rack_count = read_value(
@@ -715,12 +720,12 @@ class DataCenter:
     @property
     def room_uuids(self) -> list:
         """Unique identifiers of rooms in the datacenter"""
-        return self.__lab_uuids
+        return self.__room_uuids
 
     @property
     def room_count(self) -> int:
         """Number of rooms in the datacenter"""
-        return self.__lab_count
+        return self.__room_count
 
     @property
     def row_count(self) -> int:
@@ -745,8 +750,8 @@ class DataCenter:
             "note",
             "address{%s}" % (",".join(Address.fields())),
             "contacts{%s}" % (",".join(Contact.fields())),
-            "labs{uuid}",
-            "labCount",
+            "rooms{uuid}",
+            "roomCount",
             "rowCount",
             "rackCount",
             "hostCount",
@@ -757,7 +762,7 @@ class DataCenterList:
     """Paginated datacenter list object
 
     Contains a list of datacenter objects and information for
-    pagination. By default a single page includes a maximum of `100` items
+    pagination. By default a single page includes a maximum of ``100`` items
     unless specified otherwise in the paginated query.
 
     Consumers should always check for the property ``more`` as per default
@@ -770,7 +775,7 @@ class DataCenterList:
     ):
         """Constructs a new datacenter list object
 
-        This constructor expects a dict() object from the nebulon ON API. It
+        This constructor expects a ``dict`` object from the nebulon ON API. It
         will check the returned data against the currently implemented schema
         of the SDK.
 
@@ -831,7 +836,7 @@ class DatacentersMixin(NebMixin):
 
         :param page: The requested page from the server. This is an optional
             argument and if omitted the server will default to returning the
-            first page with a maximum of `100` items.
+            first page with a maximum of ``100`` items.
         :type page: PageInput, optional
         :param dc_filter: A filter object to filter the datacenters on the
             server. If omitted, the server will return all objects as a
@@ -868,10 +873,7 @@ class DatacentersMixin(NebMixin):
 
     def create_datacenter(
             self,
-            name: str,
-            address: AddressInput,
-            contacts: [ContactInput],
-            note: str = None
+            create_input: CreateDataCenterInput = None
     ) -> DataCenter:
         """Allows creation of a new datacenter object
 
@@ -880,16 +882,8 @@ class DatacentersMixin(NebMixin):
         information with the physical location. This is useful for effective
         support case handling and reporting purposes.
 
-        :param name: Name for the new datacenter
-        :type name: str
-        :param address: Postal address for the new datacenter
-        :type address: AddressInput
-        :param contacts: List of contacts for the new datacenter. At least one
-            contact must be provided and exactly one contact must have the
-            ``primary`` property set to ``True``.
-        :type contacts: [ContactInput]
-        :param note: An optional note for the new datacenter.
-        :type note: str, optional
+        :param create_input: A property definition for the new datacenter
+        :type create_input: CreateDataCenterInput
 
         :returns DataCenter: The new datacenter.
 
@@ -899,12 +893,7 @@ class DatacentersMixin(NebMixin):
         # setup query parameters
         parameters = dict()
         parameters["input"] = GraphQLParam(
-            CreateDataCenterInput(
-                name=name,
-                note=note,
-                address=address,
-                contacts=contacts
-            ),
+            create_input,
             "CreateDataCenterInput",
             True
         )
@@ -922,22 +911,17 @@ class DatacentersMixin(NebMixin):
     def delete_datacenter(
             self,
             uuid: str,
-            cascade: bool = False
+            delete_input: DeleteDataCenterInput = None
     ) -> bool:
         """Allows deletion of an existing datacenter object
 
         The deletion of a datacenter is only possible if the datacenter has
-        no hosts (servers) associated with any child items. By default,
-        deletion of a datacenter is only allowed when the datacenter is not
-        referenced by any rooms or if the ``cascade`` parameter is set to ``True``.
+        no hosts (servers) associated with any child items.
 
         :param uuid: The unique identifier of the datacenter to delete
         :type uuid: str
-        :param cascade: If set to True any child items of the datacenter (room,
-            row, rack) will automatically deleted with this request. If set
-            to False or omitted and the datacenter has child objects, the
-            deletion will fail with an error.
-        :type cascade: bool, optional
+        :param delete_input: Optional parameters for the delete operation
+        :type delete_input: DeleteDataCenterInput, optional
 
         :returns bool: If the query was successful
 
@@ -948,9 +932,7 @@ class DatacentersMixin(NebMixin):
         parameters = dict()
         parameters["uuid"] = GraphQLParam(uuid, "UUID", True)
         parameters["input"] = GraphQLParam(
-            DeleteDataCenterInput(
-                cascade=cascade
-            ),
+            delete_input,
             "DeleteDataCenterInput",
             False
         )
@@ -967,27 +949,15 @@ class DatacentersMixin(NebMixin):
 
     def update_datacenter(
             self,
-            uuid: str = None,
-            name: str = None,
-            address: AddressInput = None,
-            contacts: [ContactInput] = None,
-            note: str = None
+            uuid: str,
+            update_input: UpdateDataCenterInput
     ) -> DataCenter:
         """Allows updating properties of an existing datacenter object
 
         :param uuid: The unique identifier of the datacenter to update
         :type uuid: str
-        :param name: New name for the datacenter
-        :type name: str, optional
-        :param address: New postal address for the datacenter
-        :type address: AddressInput, optional
-        :param contacts: New list of contacts for the datacenter. At least one
-            contact must be provided and exactly one contact must have the
-            ``primary`` property set to ``True`` when providing a new list.
-        :type contacts: [ContactInput], optional
-        :param note: A new note for the datacenter. For removing the note,
-            provide an empty str.
-        :type note: str, optional
+        :param update_input: A property definition for the datacenter updates
+        :type update_input: UpdateDataCenterInput
 
         :returns DataCenter: The updated datacenter object.
 
@@ -998,12 +968,7 @@ class DatacentersMixin(NebMixin):
         parameters = dict()
         parameters["uuid"] = GraphQLParam(uuid, "UUID", True)
         parameters["input"] = GraphQLParam(
-            UpdateDataCenterInput(
-                name=name,
-                note=note,
-                address=address,
-                contacts=contacts
-            ),
+            update_input,
             "UpsertDataCenterInput",
             False
         )
