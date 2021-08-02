@@ -78,8 +78,8 @@ class AvailablePackagesSort:
     ):
         """Constructs a new sort object for SPUs
 
-        Allows sorting software packages on common properties. The sort object allows
-        only one property to be specified.
+        Allows sorting software packages on common properties. The sort object
+        allows only one property to be specified.
 
         :param package_name: Sort direction for the ``package_name`` property
         :type package_name: SortDirection, optional
@@ -347,7 +347,8 @@ class NPodRecommendedPackage:
         :param response: The JSON response from the server
         :type response: dict
 
-        :raises ValueError: An error if illegal data is returned from the server
+        :raises ValueError: An error if illegal data is returned from the
+            server.
         """
         self.__package_name = read_value(
             "packageName", response, str, True)
@@ -375,7 +376,7 @@ class NPodRecommendedPackage:
     def fields():
         return [
             "packageName",
-            "packagePriority",
+            "priority",
             "offline",
         ]
 
@@ -400,7 +401,8 @@ class RecommendedPackages:
         :param response: The JSON response from the server
         :type response: dict
 
-        :raises ValueError: An error if illegal data is returned from the server
+        :raises ValueError: An error if illegal data is returned from the
+            server.
         """
         self.__spu_type = read_value(
             "spuType", response, str, True)
@@ -464,7 +466,8 @@ class PackageInfoList:
         :param response: The JSON response from the server
         :type response: dict
 
-        :raises ValueError: An error if illegal data is returned from the server
+        :raises ValueError: An error if illegal data is returned from the
+            server.
         """
         self.__items = read_value(
             "items", response, PackageInfo, True)
@@ -521,7 +524,8 @@ class UpdateStateSpu:
         :param response: The JSON response from the server
         :type response: dict
 
-        :raises ValueError: An error if illegal data is returned from the server
+        :raises ValueError: An error if illegal data is returned from the
+            server.
         """
         self.__update_id = read_value(
             "updateID", response, str, True)
@@ -633,7 +637,8 @@ class UpdateHistory:
         :param response: The JSON response from the server
         :type response: dict
 
-        :raises ValueError: An error if illegal data is returned from the server
+        :raises ValueError: An error if illegal data is returned from the
+            server.
         """
         self.__update_id = read_value(
             "updateID", response, str, True)
@@ -786,9 +791,9 @@ class UpdatesMixin(NebMixin):
             at the specified date and time. If omitted, the package will be
             installed immediately
         :type schedule_at: datetime, optional
-        :param ignore_warnings: If specified warnings that are discovered during
-            the update pre-check are ignored (not recommended). If omitted or
-            set to ``False`` will cause the update to stop.
+        :param ignore_warnings: If specified warnings that are discovered
+            during the update pre-check are ignored (not recommended). If 
+            omitted or set to ``False`` will cause the update to stop.
         :type ignore_warnings: bool, optional
 
         :raises GraphQLError: An error with the GraphQL endpoint
@@ -832,8 +837,8 @@ class UpdatesMixin(NebMixin):
         Allows querying for currently ongoing updates and their status
         information.
 
-        :param npod_uuid: Filter active updates for a specific nPod by providing
-            its unique identifier
+        :param npod_uuid: Filter active updates for a specific nPod by
+            providing its unique identifier
         :type npod_uuid: str
         :param update_uuid: The unique identifier of an ongoing update
         :type update_uuid: str

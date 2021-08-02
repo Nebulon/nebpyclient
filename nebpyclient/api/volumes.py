@@ -795,7 +795,7 @@ class VolumeMixin(NebMixin):
         parameters = dict()
         parameters["input"] = GraphQLParam(
             create_volume_input,
-            "CreateVolumeInput",
+            "CreateVolumeInputV2",
             True
         )
 

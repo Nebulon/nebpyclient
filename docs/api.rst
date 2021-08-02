@@ -13,6 +13,7 @@ Nebulon Python Client
     :members:
     :inherited-members:
 
+
 General
 -------
 
@@ -82,6 +83,7 @@ Datacenter Racks
 .. automodule:: nebpyclient.api.racks
     :members:
     :exclude-members: *Mixin
+
 
 Support Cases
 -------------

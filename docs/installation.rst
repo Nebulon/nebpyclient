@@ -12,12 +12,6 @@ Python Package Index Installation
 
 .. code-block:: bash
 
-    pip install nebpyclient
-
-Or
-
-.. code-block:: bash
-
     python3 -m pip install nebpyclient
 
 

@@ -53,8 +53,7 @@ name ``NPod Name`` would be:
 
 .. code-block:: python
 
-    from nebpyclient import NebPyClient
-    from nebpyclient import NPodFilter, StringFilter
+    from nebpyclient import *
 
     client = NebPyClient("username", "password")
 
@@ -77,9 +76,11 @@ name ``NPod Name`` would be:
 
     # create the volume
     client.create_volume(
-        name=volume_name,
-        size_bytes=volume_size_bytes,
-        npod_uuid=npod_uuid
+        create_volume_input=CreateVolumeInput(
+            name=volume_name,
+            size_bytes=volume_size_bytes,
+            npod_uuid=npod_uuid
+        )
     )
 
 The full documentation and available queries and mutations is available in
