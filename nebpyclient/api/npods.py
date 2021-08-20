@@ -17,7 +17,7 @@ from datetime import datetime
 from .common import NebEnum, PageInput, read_value
 from .filters import StringFilter, UUIDFilter
 from .sorting import SortDirection
-from .recipe import RecipeState
+from .recipe import RecipeState, NPodRecipeFilter
 from .tokens import TokenResponse
 from .issues import Issues
 from .updates import UpdateHistory, NPodRecommendedPackage
@@ -1807,6 +1807,9 @@ class NPodsMixin(NebMixin):
         # TODO: Nebulon ON now returns a different response
         recipe_uuid = delivery_response["recipe_uuid_to_wait_on"]
         npod_uuid = delivery_response["npod_uuid_to_wait_on"]
+        npod_recipe_filter = NPodRecipeFilter(
+                npod_uuid=npod_uuid,
+                recipe_uuid=recipe_uuid)
 
         # set a custom timeout for the nPod creation process
         start = datetime.now()
@@ -1814,10 +1817,7 @@ class NPodsMixin(NebMixin):
         while True:
             sleep(5)
 
-            recipes = self.get_npod_recipes(
-                npod_uuid=npod_uuid,
-                recipe_uuid=recipe_uuid
-            )
+            recipes = self.get_npod_recipes(npod_recipe_filter=npod_recipe_filter)
 
             # if there is no record in the cloud wait a few more seconds
             # this case should not exist, but is a safety measure for a
