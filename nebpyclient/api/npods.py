@@ -1442,7 +1442,7 @@ class NPod:
             "spuCount",
             "snapshots{uuid}",
             "updateHistory{%s}" % ",".join(UpdateHistory.fields()),
-            "nPodTemplate{uid}"
+            "nPodTemplate{uuid}"
             "creationTime",
             "recommendedPackage{%s}" % ",".join(NPodRecommendedPackage.fields())
         ]

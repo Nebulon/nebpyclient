@@ -95,7 +95,11 @@ class AlertFilter:
             severity: AlertSeverity = None,
             resource_type: ResourceType = None,
             resource_id: str = None,
-            status: AlertStatus = None
+            status: AlertStatus = None,
+            npod_uuid: str = None,
+            spu_serial: str = None,
+            code: str = None,
+            incident_id: str = None
     ):
         """Constructs a new filter object
 
@@ -122,6 +126,17 @@ class AlertFilter:
             specified status. This property is ignored for the get_open_alerts
             query.
         :type status: AlertStatus, optional
+        :param npod_uuid: Filter alerts to include only alerts that match the
+            specified nPod UUID
+        :type npod_uuid: str, optional
+        :param spu_serial: Filter alerts to include only alerts that match the
+            specified SPU serial number
+        :type spu_serial: str, optional
+        :param code: Filter alerts to include only alerts that match the
+            specified alert code
+        :type code: str, optional
+        :param incident_id: Filter based on nPod unique identifiers
+        :type incident_id: str, optional
         """
         self.__created_after = created_after
         self.__created_before = created_before
@@ -129,6 +144,10 @@ class AlertFilter:
         self.__resource_type = resource_type
         self.__resource_id = resource_id
         self.__status = status
+        self.__npod_uuid = npod_uuid
+        self.__spu_serial = spu_serial
+        self.__code = code
+        self.__incident_id = incident_id
 
     @property
     def created_after(self) -> datetime:
@@ -161,6 +180,26 @@ class AlertFilter:
         return self.__status
 
     @property
+    def npod_uuid(self) -> str:
+        """Filter for alerts that match the specified nPod UUID"""
+        return self.__npod_uuid
+
+    @property
+    def spu_serial(self) -> str:
+        """Filter for alerts that match the specified SPU serial number"""
+        return self.__spu_serial
+
+    @property
+    def code(self) -> str:
+        """Filter for alerts that match the specified alert code"""
+        return self.__code
+
+    @property
+    def incident_id(self) -> str:
+        """Filter for alerts that match the specified incident ID"""
+        return self.__incident_id
+
+    @property
     def as_dict(self) -> dict:
         result = dict()
         result["createdAfter"] = self.created_after
@@ -169,6 +208,10 @@ class AlertFilter:
         result["resourceType"] = self.resource_type
         result["resourceID"] = self.resource_id
         result["status"] = self.status
+        result["nPodUUID"] = self.npod_uuid
+        result["spuSerial"] = self.spu_serial
+        result["code"] = self.code
+        result["incidentID"] = self.incident_id
         return result
 
 
@@ -217,7 +260,7 @@ class Alert:
             "status", response, AlertStatus, True)
         self.__spu_serial = read_value(
             "spuSerial", response, str, False)
-        self.__pod_uuid = read_value(
+        self.__npod_uuid = read_value(
             "nPodUUID", response, str, False)
         self.__summary = read_value(
             "summary", response, str, True)
@@ -281,9 +324,9 @@ class Alert:
         return self.__spu_serial
 
     @property
-    def pod_uuid(self) -> str:
+    def npod_uuid(self) -> str:
         """Related nPod uuid"""
-        return self.__pod_uuid
+        return self.__npod_uuid
 
     @property
     def summary(self) -> str:

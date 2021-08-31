@@ -26,6 +26,7 @@ from .tokens import TokenResponse
 __all__ = [
     "SpuSort",
     "SpuFilter",
+    "DebugInfoInput",
     "NTPServerInput",
     "SecureEraseSPUInput",
     "ReplaceSpuInput",
@@ -433,7 +434,7 @@ class SetNTPServersInput:
         """
 
         self.__spu_serial = spu_serial
-        self.__pod_uuid = npod_uuid
+        self.__npod_uuid = npod_uuid
         self.__servers = servers
 
     @property
@@ -442,9 +443,9 @@ class SetNTPServersInput:
         return self.__spu_serial
 
     @property
-    def pod_uuid(self) -> str:
+    def npod_uuid(self) -> str:
         """The unique identifier of the nPod"""
-        return self.__pod_uuid
+        return self.__npod_uuid
 
     @property
     def servers(self) -> [NTPServerInput]:
@@ -455,7 +456,7 @@ class SetNTPServersInput:
     def as_dict(self):
         result = dict()
         result["spuSerial"] = self.spu_serial
-        result["podUUID"] = self.pod_uuid
+        result["podUUID"] = self.npod_uuid
         result["servers"] = self.servers
         return result
 
@@ -569,6 +570,8 @@ class IPInfoState:
             "switchPort", response, str, True)
         self.__link_active = read_value(
             "linkActive", response, bool, True)
+        self.__netmask_bits = read_value(
+            "netmaskBits", response, int, 0)
 
     @property
     def dhcp(self) -> bool:
@@ -659,6 +662,11 @@ class IPInfoState:
     def link_active(self) -> bool:
         """Indicates if the interface has a link"""
         return self.__link_active
+    
+    @property
+    def netmask_bits(self) -> int:
+        """Indicated the netmask bits"""
+        return self.__netmask_bits
 
     @staticmethod
     def fields():
@@ -671,6 +679,7 @@ class IPInfoState:
             "bondMIIMonitorMilliSeconds",
             "bondLACPTransmitRate",
             "interfaceNames",
+            "displayInterfaceNames",
             "interfaceMAC",
             "halfDuplex",
             "speed",
@@ -679,7 +688,8 @@ class IPInfoState:
             "switchName",
             "switchMAC",
             "switchPort",
-            "linkActive"
+            "linkActive",
+            "netmaskBits"
         ]
 
 

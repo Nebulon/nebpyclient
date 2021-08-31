@@ -211,12 +211,12 @@ class PhysicalDriveFilter:
 
     def __init__(
             self,
-            wwn: StringFilter,
-            size_bytes: IntFilter,
-            model: StringFilter,
-            vendor: StringFilter,
-            interface_type: StringFilter,
-            spu_serial: StringFilter,
+            wwn: StringFilter=None,
+            size_bytes: IntFilter=None,
+            model: StringFilter=None,
+            vendor: StringFilter=None,
+            interface_type: StringFilter=None,
+            spu_serial: StringFilter=None,
             and_filter=None,
             or_filter=None
     ):

@@ -95,6 +95,7 @@ class UpsertVsphereCredentialsInput:
             username: str,
             password: str,
             url: str,
+            insecure: bool = False,
             enable_vmhost_affinity: bool = False,
     ):
         """Constructs a new vSphere credentials object
@@ -108,6 +109,8 @@ class UpsertVsphereCredentialsInput:
             address. If the default HTTPS port (443) is used, then the
             port specification is not required.
         :type url: str
+        :param insecure: Allow update if certificate is not valid
+        :type insecure: bool, optional
         :param enable_vmhost_affinity: If provided and set to ``True`` the
             VMware vSphere integration will configure VM affinity rules to
             ensure that Virtual Machines are running on the host where
@@ -121,6 +124,7 @@ class UpsertVsphereCredentialsInput:
         self.__username = username
         self.__password = password
         self.__url = url
+        self.__insecure = insecure
         self.__enable_vmhost_affinity = enable_vmhost_affinity
 
     @property
@@ -139,6 +143,11 @@ class UpsertVsphereCredentialsInput:
         return self.__url
 
     @property
+    def insecure(self) -> bool:
+        """Trust Certificate"""
+        return self.__insecure
+
+    @property
     def enable_vmhost_affinity(self) -> bool:
         """Enable automatic VM to Host affinity rule creation"""
         return self.__enable_vmhost_affinity
@@ -149,6 +158,7 @@ class UpsertVsphereCredentialsInput:
         result["username"] = self.username
         result["password"] = self.password
         result["url"] = self.url
+        result["insecure"] = self.insecure
         result["enableVmhostAffinity"] = self.enable_vmhost_affinity
         return result
 

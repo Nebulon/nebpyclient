@@ -233,7 +233,7 @@ class PackageInfo:
         self.__lts_version = read_value(
             "longTermSupportVersion", response, bool, True)
         self.__offline = read_value(
-            "offlineCheck", response, bool, True)
+            "offlineCheck", response, str, True)
         self.__eligible_npod_uuids = read_value(
             "eligibleNPods.uuid", response, str, False)
 
@@ -538,7 +538,7 @@ class UpdateStateSpu:
         self.__waiting_for_spu_serial = read_value(
             "waitingForSPUSerial", response, str, True)
         self.__waiting_for_scheduled = read_value(
-            "waitingForScheduled", response, datetime, True)
+            "waitingForScheduled", response, datetime, False)
         self.__started_install = read_value(
             "startedInstall", response, bool, True)
         self.__restarting = read_value(
@@ -613,6 +613,7 @@ class UpdateStateSpu:
             "packageName",
             "downloadProgressPct",
             "waitingForSPUSerial",
+            "waitingForScheduled",
             "startedInstall",
             "restarting",
             "restartComplete",
@@ -721,9 +722,9 @@ class UpdatesMixin(NebMixin):
         parameters["page"] = GraphQLParam(
             page, "PageInput", False)
         parameters["filter"] = GraphQLParam(
-            available_packages_filter, "SPUFilter", False)
+            available_packages_filter, "AvailablePackagesFilter", False)
         parameters["sort"] = GraphQLParam(
-            sort, "SPUSort", False)
+            sort, "AvailablePackagesSort", False)
 
         # make the request
         response = self._query(
