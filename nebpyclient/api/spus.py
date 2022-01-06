@@ -165,6 +165,7 @@ class SpuFilter:
         result["notInNPod"] = self.not_in_npod
         result["hostIOCWWN"] = self.host_ioc_wwn
         result["storageIOCWWN"] = self.storage_ioc_wwn
+        result["nPodUUID"] = self.npod_uuid
         result["and"] = self.and_filter
         result["or"] = self.or_filter
         return result

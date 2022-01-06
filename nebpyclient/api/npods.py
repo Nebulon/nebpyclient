@@ -39,6 +39,7 @@ __all__ = [
     "NPodList",
     "NPodCustomDiagnostic",
     "ExpectedNPodCapacity",
+    "UpdateNPodMembersInput",
     "NPodsMixin"
 ]
 
@@ -1666,6 +1667,37 @@ class ExpectedNPodCapacity:
             "totalVVCount",
         ]
 
+class UpdateNPodMembersInput:
+    """ An input object to update (expand) an existing nPod.
+
+    The update nPod members operation is used to expand an exisitng nPod with
+    the given input services processing units (SPU).
+    """
+
+    def __init__(
+        self,
+        add_spus: [NPodSpuInput]
+        ):
+        """ Constructs a new input object to update an nPod
+
+        The update nPod members operation is used to expand the existing nPod
+        with the given services processing units.
+
+        :param add_spus: A list of input SPUs to expand the nPod.
+        :type add_spus: [NPodSpuInput]
+        """
+        self.__add_spus = add_spus
+    
+    @property
+    def add_spus(self) -> [NPodSpuInput]:
+        """The list of SPUs to expand the nPod"""
+        return self.__add_spus
+
+    @property
+    def as_dict(self):
+        result = dict()
+        result["addSPUs"] = self.add_spus
+        return result
 
 class NPodsMixin(NebMixin):
     """Mixin to add nPod related methods to the GraphQL client"""
@@ -2005,3 +2037,108 @@ class NPodsMixin(NebMixin):
         # convert to object
         token_response = TokenResponse(response)
         token_response.deliver_token()
+    
+    def update_npod_members(
+        self,
+        uuid: str,
+        update_npod_members_input: UpdateNPodMembersInput
+    ) -> NPod:
+        """ Allows expanding an existing nPod with additional SPUs
+        
+        The update nPod members operation is used to expand the existing nPod 
+        (identified by uuid) with the given services processing units (SPU) 
+        passed by update nPod members input.
+
+        :param uuid: The unique identifier of the nPod to update.
+        :type uuid: str
+        :param update_npod_members_input: An input object describing the
+            parameters for updating nPod
+        :type update_npod_members_input: UpdateNPodMembersInput
+
+        :returns NPod: The new nPod
+
+        :raises GraphQLError: An error with the GraphQL endpoint.
+        :raises Exception: When nebulon ON reports validation errors or warnings
+            and the ``ignore_warnings`` parameter is not set to ``True`` or if
+            the update nPod members times out.
+        """
+
+        # setup mutation parameters
+        parameters = dict()
+        parameters["uuid"] = GraphQLParam(
+            uuid,
+            "UUID",
+            True
+        )
+        parameters["input"] = GraphQLParam(
+            update_npod_members_input,
+            "UpdateNPodMembersInput",
+            True
+        )
+
+        # make the request
+        response = self._mutation(
+            name="updateNPodMembers",
+            params=parameters,
+            fields=TokenResponse.fields()
+        )
+
+        # convert to object and deliver token
+        token_response = TokenResponse(response)
+        delivery_response = token_response.deliver_token()
+
+        # wait for recipe completion
+        # TODO: Nebulon ON now returns a different response
+        recipe_uuid = delivery_response["recipe_uuid_to_wait_on"]
+        npod_uuid = delivery_response["npod_uuid_to_wait_on"]
+        npod_recipe_filter = NPodRecipeFilter(
+                npod_uuid=npod_uuid,
+                recipe_uuid=recipe_uuid)
+
+        # set a custom timeout for the update nPod members process
+        start = datetime.now()
+
+        while True:
+            sleep(5)
+
+            recipes = self.get_npod_recipes(npod_recipe_filter=npod_recipe_filter)
+
+            # if there is no record in the cloud wait a few more seconds
+            # this case should not exist, but is a safety measure for a
+            # potential race condition
+            if len(recipes.items) != 0:
+
+                # based on the query there should be exactly one
+                recipe = recipes.items[0]
+
+                if recipe.state == RecipeState.Failed:
+                    raise Exception(f"update nPod members failed: {recipe.status}")
+
+                if recipe.state == RecipeState.Timeout:
+                    raise Exception(f"update nPod members timeout: {recipe.status}")
+
+                if recipe.state == RecipeState.Cancelled:
+                    raise Exception(f"update nPod members cancelled: {recipe.status}")
+
+                if recipe.state == RecipeState.Completed:
+                    npod_list = self.get_npods(
+                        npod_filter=NPodFilter(
+                            uuid=UUIDFilter(
+                                equals=npod_uuid
+                            )
+                        )
+                    )
+
+                    if npod_list.filtered_count == 0:
+                        break
+
+                    return npod_list.items[0]
+
+            # Wait time remaining until timeout
+            total_duration = (datetime.now() - start).total_seconds()
+            time_remaining = _TIMEOUT_SECONDS - total_duration
+
+            if time_remaining <= 0:
+                raise Exception("update nPod members timed out")
+
+        

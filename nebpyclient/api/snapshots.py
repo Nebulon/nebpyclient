@@ -16,6 +16,7 @@ from .common import PageInput, NebEnum, read_value
 from .filters import UUIDFilter, StringFilter
 from .sorting import SortDirection
 from .tokens import TokenResponse
+import datetime, time
 
 __all__ = [
     "SnapshotConsistencyLevel",
@@ -1043,7 +1044,7 @@ class SnapshotMixin(NebMixin):
         # setup query parameters
         parameters = dict()
         parameters["uuid"] = GraphQLParam(uuid, "UUID", True)
-        parameters["force"] = GraphQLParam(force, "force", False)
+        parameters["force"] = GraphQLParam(force, "Boolean", False)
 
         # make the request
         response = self._mutation(
@@ -1054,6 +1055,36 @@ class SnapshotMixin(NebMixin):
 
         # response is a boolean
         return response
+
+    def remove_snapshot_schedule_template(
+            self,
+            scheduleUID: str,
+    ) -> bool:
+        """Allows removal of an existing snapshot schedule template
+
+        :param scheduleUID: The unique identifier of the snapshot schedule template
+            to delete
+        :type scheduleUID: str
+
+        :returns bool: If the query was successful
+
+        :raises GraphQLError: An error with the GraphQL endpoint.
+        """
+
+        # setup query parameters
+        parameters = dict()
+        parameters["scheduleUID"] = GraphQLParam(scheduleUID, "String", True)
+
+        # make the request
+        response = self._mutation(
+            name="removeScheduleV2",
+            params=parameters,
+            fields=TokenResponse.fields()
+        )
+
+        # convert to object and deliver token
+        token_response = TokenResponse(response)
+        return token_response.deliver_token()
 
     def get_snapshot_schedules(
             self,

@@ -11,10 +11,14 @@
 # DEALINGS IN THE SOFTWARE.
 #
 
+from time import sleep
+from datetime import datetime
 from .graphqlclient import GraphQLParam, NebMixin
 from .common import PageInput, read_value
 from .filters import UUIDFilter, IntFilter, StringFilter
 from .sorting import SortDirection
+from .recipe import RecipeState, NPodRecipeFilter
+from .npods import _TIMEOUT_SECONDS
 from .tokens import TokenResponse
 
 __all__ = [
@@ -528,7 +532,7 @@ class LUNsMixin(NebMixin):
     def create_lun(
             self,
             lun_input: CreateLUNInput
-    ):
+    ) -> LUN:
         """Allows creation of a new LUN
 
         Allows the creation of a LUN for a volume. A LUN is an instance of a
@@ -536,6 +540,8 @@ class LUNsMixin(NebMixin):
 
         :param lun_input: The parameters that describe the LUN or LUNs to create
         :type lun_input: CreateLUNInput
+
+        :returns LUN: the created LUN.
 
         :raises GraphQLError: An error with the GraphQL endpoint.
         """
@@ -550,16 +556,78 @@ class LUNsMixin(NebMixin):
 
         # make the request
         response = self._mutation(
-            name="createLUN",
+            name="createLUNV2",
             params=parameters,
             fields=TokenResponse.fields()
         )
 
         # convert to object and deliver token
         token_response = TokenResponse(response)
-        token_response.deliver_token()
+        delivery_response = token_response.deliver_token()
 
-        # TODO: Query for the created LUNs and return them
+        # wait for recipe completion
+        # TODO: Nebulon ON now returns a different response
+        recipe_uuid = delivery_response["recipe_uuid_to_wait_on"]
+        npod_uuid = delivery_response["npod_uuid_to_wait_on"]
+        npod_recipe_filter = NPodRecipeFilter(
+                npod_uuid=npod_uuid,
+                recipe_uuid=recipe_uuid)
+
+        # set a custom timeout for the create lun process
+        start = datetime.now()
+
+        while True:
+            sleep(5)
+
+            recipes = self.get_npod_recipes(npod_recipe_filter=npod_recipe_filter)
+
+            # if there is no record in the cloud wait a few more seconds
+            # this case should not exist, but is a safety measure for a
+            # potential race condition
+            if len(recipes.items) != 0:
+
+                # based on the query there should be exactly one
+                recipe = recipes.items[0]
+
+                if recipe.state == RecipeState.Failed:
+                    raise Exception(f"create lun failed: {recipe.status}")
+
+                if recipe.state == RecipeState.Timeout:
+                    raise Exception(f"create lun timeout: {recipe.status}")
+
+                if recipe.state == RecipeState.Cancelled:
+                    raise Exception(f"create lun cancelled: {recipe.status}")
+
+                if recipe.state == RecipeState.Completed:
+                    lun_list = self.get_luns(
+                        lun_filter=LUNFilter(
+                            npod_uuid=UUIDFilter(
+                                equals=npod_uuid
+                            ),
+                            and_filter=LUNFilter(
+                                volume_uuid=UUIDFilter(
+                                    equals=lun_input.volume_uuid
+                                ),
+                                and_filter=LUNFilter(
+                                    lun_id=IntFilter(
+                                        equals=lun_input.lun_id
+                                    )
+                                )
+                            )
+                        )
+                    )
+
+                    if lun_list.filtered_count == 0:
+                        break
+
+                    return lun_list.items[0]
+
+            # Wait time remaining until timeout
+            total_duration = (datetime.now() - start).total_seconds()
+            time_remaining = _TIMEOUT_SECONDS - total_duration
+
+            if time_remaining <= 0:
+                raise Exception("create lun timed out")
 
     def delete_lun(
             self,

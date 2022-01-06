@@ -814,3 +814,49 @@ the API reference for details.
 - Class ``NPodRecommendedPackage`` was introduced.
 - Class ``PackageInfoList`` was introduced.
 - Class ``UUIDFilter`` was introduced.
+
+
+Version 2.0.6
+-------------
+Version 2.0.6 includes the following externally visible 
+changes on top of version 2.0.5.
+
+Changed Classes
+~~~~~~~~~~~~~~~
+
+NebPyClient Changes
+###################
+
+The following changes were made to the ``NebPyClient`` class.
+
+- Function ``update_npod_members`` was added.
+  input: ``uuid, update_npod_members_input``
+
+New Classes
+~~~~~~~~~~~
+
+The following classes were introduced in this version.
+
+- Class ``UpdateNPodMembersInput`` was introduced.
+
+
+Version 2.0.7
+-------------
+Version 2.0.6 includes the following externally visible 
+changes on top of version 2.0.5.
+
+Changed Classes
+~~~~~~~~~~~~~~~
+
+NebPyClient Changes
+###################
+
+The following changes were made to the ``NebPyClient`` class.
+
+- Function ``create_lun`` was modified:
+  - use createLUNV2 instead of createLUN. 
+  - Wait on recipe to completed and return the lun or raise an exception
+
+- Function ``create_volume`` was modified.
+  - Wait on recipe to completed and return the volume or raise an exception
+

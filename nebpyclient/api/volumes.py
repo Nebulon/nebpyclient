@@ -17,6 +17,8 @@ from datetime import datetime
 from .common import NebEnum, PageInput, read_value
 from .filters import StringFilter, UUIDFilter, IntFilter
 from .sorting import SortDirection
+from .recipe import RecipeState, NPodRecipeFilter
+from .npods import _TIMEOUT_SECONDS
 from .tokens import TokenResponse
 
 __all__ = [
@@ -808,7 +810,66 @@ class VolumeMixin(NebMixin):
 
         # convert to object and deliver token
         token_response = TokenResponse(response)
-        token_response.deliver_token()
+        delivery_response = token_response.deliver_token()
+
+        # wait for recipe completion
+        # TODO: Nebulon ON now returns a different response
+        recipe_uuid = delivery_response["recipe_uuid_to_wait_on"]
+        npod_uuid = delivery_response["npod_uuid_to_wait_on"]
+        npod_recipe_filter = NPodRecipeFilter(
+                npod_uuid=npod_uuid,
+                recipe_uuid=recipe_uuid)
+
+        # set a custom timeout for the create volume process
+        start = datetime.now()
+
+        while True:
+            sleep(5)
+
+            recipes = self.get_npod_recipes(npod_recipe_filter=npod_recipe_filter)
+
+            # if there is no record in the cloud wait a few more seconds
+            # this case should not exist, but is a safety measure for a
+            # potential race condition
+            if len(recipes.items) != 0:
+
+                # based on the query there should be exactly one
+                recipe = recipes.items[0]
+
+                if recipe.state == RecipeState.Failed:
+                    raise Exception(f"create volume failed: {recipe.status}")
+
+                if recipe.state == RecipeState.Timeout:
+                    raise Exception(f"create volume timeout: {recipe.status}")
+
+                if recipe.state == RecipeState.Cancelled:
+                    raise Exception(f"create volume cancelled: {recipe.status}")
+
+                if recipe.state == RecipeState.Completed:
+                    volume_list = self.get_volumes(
+                        volume_filter=VolumeFilter(
+                            npod_uuid=UUIDFilter(
+                                equals=npod_uuid
+                            ),
+                            and_filter=VolumeFilter(
+                                name=StringFilter(
+                                    equals=create_volume_input.name
+                                )
+                            )
+                        )
+                    )
+
+                    if volume_list.filtered_count == 0:
+                        break
+
+                    return volume_list.items[0]
+
+            # Wait time remaining until timeout
+            total_duration = (datetime.now() - start).total_seconds()
+            time_remaining = _TIMEOUT_SECONDS - total_duration
+
+            if time_remaining <= 0:
+                raise Exception("create volume timed out")
 
     def delete_volume(
             self,
