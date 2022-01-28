@@ -22,6 +22,7 @@ from .npods import NPodSpuInput, \
     BondTransmitHashPolicy
 from .updates import UpdateHistory
 from .tokens import TokenResponse
+from .issues import Issues
 
 __all__ = [
     "SpuSort",
@@ -1346,7 +1347,8 @@ class SpuMixin(NebMixin):
 
     def set_ntp_servers(
             self,
-            ntp_servers_input: SetNTPServersInput
+            ntp_servers_input: SetNTPServersInput,
+            ignore_warnings: bool = False
     ):
         """Allows configuring the NTP server for an SPU or nPod
 
@@ -1357,9 +1359,18 @@ class SpuMixin(NebMixin):
 
         :param ntp_servers_input: The NTP Server configuration to use
         :type ntp_servers_input: SetNTPServersInput
+        :param ignore_warnings: If specified and set to ``True`` the nPod creation
+            will proceed even if nebulon ON reports warnings. It is advised to
+            not ignore warnings. Consequently, the default behavior is that
+            the nPod creation will fail when nebulon ON reports validation
+            errors.
+        :type ignore_warnings: bool, optional
 
         :raises GraphQLError: An error with the GraphQL endpoint.
         :raises Exception: An error when delivering a token to the SPU
+        :raises Exception: When nebulon ON reports validation errors or warnings
+            and the ``ignore_warnings`` parameter is not set to ``True`` or if the
+            nPod creation times out.
         """
 
         # setup query parameters
@@ -1376,6 +1387,8 @@ class SpuMixin(NebMixin):
             params=parameters,
             fields=TokenResponse.fields()
         )
+        issues = Issues(response=response["issues"])
+        issues.assert_no_issues(ignore_warnings=ignore_warnings)
 
         # convert to object
         token_response = TokenResponse(response)

@@ -817,7 +817,7 @@ class VolumeMixin(NebMixin):
 
         # wait for the volume if delivery result is True (success)
         if delivery_result:
-            retry_count = 5
+            retry_count = 150
             while retry_count >= 0:
                 sleep(2)
                 vol_list = self.get_volumes(
