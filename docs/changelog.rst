@@ -860,3 +860,19 @@ The following changes were made to the ``NebPyClient`` class.
 - Function ``create_volume`` was modified.
   - Wait on recipe to completed and return the volume or raise an exception
 
+
+Version 2.0.8
+-------------
+Version 2.0.8 includes the following externally visible 
+changes on top of version 2.0.7.
+
+Changed Classes
+~~~~~~~~~~~~~~~
+
+NebPyClient Changes
+###################
+
+The following changes were made to the ``NebPyClient`` class.
+
+- Function ``set_ntp_servers`` was modified:
+  - accepts ``ignore_warnings`` argument
