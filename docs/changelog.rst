@@ -842,8 +842,8 @@ The following classes were introduced in this version.
 
 Version 2.0.7
 -------------
-Version 2.0.6 includes the following externally visible 
-changes on top of version 2.0.5.
+Version 2.0.7 includes the following externally visible 
+changes on top of version 2.0.6.
 
 Changed Classes
 ~~~~~~~~~~~~~~~
@@ -860,11 +860,10 @@ The following changes were made to the ``NebPyClient`` class.
 - Function ``create_volume`` was modified.
   - Wait on recipe to completed and return the volume or raise an exception
 
-
-Version 2.0.8
+Version 2.0.10
 -------------
-Version 2.0.8 includes the following externally visible 
-changes on top of version 2.0.7.
+Version 2.0.10 includes the following externally visible 
+changes on top of version 2.0.9.
 
 Changed Classes
 ~~~~~~~~~~~~~~~
@@ -874,5 +873,49 @@ NebPyClient Changes
 
 The following changes were made to the ``NebPyClient`` class.
 
-- Function ``set_ntp_servers`` was modified:
-  - accepts ``ignore_warnings`` argument
+- Class initializer ``NebPyClient`` was modified:
+  - take uri endpoint as an input
+- Class initializer ``CreateVolumeInput`` was modified:
+  - supporting ``download_contents_url, replace_lun, boot`` inputs
+- Function ``create_clone`` was modified.
+  - input: ``create_clone_input``
+- Field ``lom_credentials`` was added to ``Host`` Object
+
+GraphQLClient Changes
+###################
+
+- Class initializer ``GraphQLClient`` was modified:
+  - take uri endpoint as an input
+
+- ``constants.py`` was added to keep track of the constants
+
+BondType Changes
+###################
+
+The following changes were made to the ``BondType`` class.
+
+- Enum ``BOND_MODE_BALANCE_ALB`` was disabled.
+
+Host Changes
+###################
+
+The following changes were made to the ``Host`` class.
+
+- Enum ``lomCredentials`` field was added to Host object
+
+New Classes
+~~~~~~~~~~~
+
+The following classes were introduced in this version. Please review
+the API reference for details.
+
+- Class ``LomCredentialsMixin`` was introduced.
+- Class ``UpsertLomCredentialsInput`` was introduced.
+- Class ``DeleteLomCredentialsInput`` was introduced.
+- Class ``CreateCloneInput`` was introduced
+- Class ``LOMCredentials`` was introduced
+- Class ``LOMStatus`` was introduced
+- Class ``UpdateNPodTokenInput`` was introduced.
+  - input variable to ``update_npod_token`` function
+- Class ``UpdateImmutableBootInput`` was introduced.
+  - input variable to ``UpdateNPodTokenInput`` function

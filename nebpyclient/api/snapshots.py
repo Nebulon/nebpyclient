@@ -20,7 +20,6 @@ import datetime, time
 
 __all__ = [
     "SnapshotConsistencyLevel",
-    "CreateCloneInput",
     "ScheduleInput",
     "SnapshotScheduleTemplateSort",
     "SnapshotScheduleTemplateFilter",
@@ -51,56 +50,6 @@ class SnapshotConsistencyLevel(NebEnum):
     Volume = "Volume"
     SPU = "SPU"
     NPod = "NPod"
-
-
-class CreateCloneInput:
-    """An input object to create a volume clone
-
-    Allows the creation of a volume clone from a base volume or snapshot.
-    Clones are read and writeable copies of another volume. Clones can be used
-    to quickly instantiate copies of data and data for recovery purposes when
-    applications require read/write access for copy operations.
-    """
-
-    def __init__(
-            self,
-            name: str,
-            volume_uuid: str
-    ):
-        """Constructs a new input object to create a volume clone
-
-        Allows the creation of a volume clone from a base volume or snapshot.
-        Clones are read and writeable copies of another volume. Clones can be
-        used to quickly instantiate copies of data and data for recovery
-        purposes when applications require read/write access for copy
-        operations.
-
-        :param name: The human readable name for the volume clone
-        :type name: str
-        :param volume_uuid: The unique identifier for the volume or snapshot
-            from which to create the clone
-        :type volume_uuid: str
-        """
-
-        self.__name = name
-        self.__volume_uuid = volume_uuid
-
-    @property
-    def name(self) -> str:
-        """Name for the volume clone"""
-        return self.__name
-
-    @property
-    def volume_uuid(self) -> str:
-        """Unique identifier of the volume or snapshot to clone"""
-        return self.__volume_uuid
-
-    @property
-    def as_dict(self):
-        result = dict()
-        result["cloneVolumeName"] = self.name
-        result["originVolumeUUID"] = self.volume_uuid
-        return result
 
 
 class ScheduleInput:
@@ -1058,13 +1007,20 @@ class SnapshotMixin(NebMixin):
 
     def remove_snapshot_schedule_template(
             self,
-            scheduleUID: str,
+            schedule_uid: str,
+            ignore_warnings: bool = False,
     ) -> bool:
-        """Allows removal of an existing snapshot schedule template
+        """Allows removal of an existing snapshot schedule from a nPod or SPU
 
-        :param scheduleUID: The unique identifier of the snapshot schedule template
+        :param schedule_uid: The unique identifier of the snapshot schedule template
             to delete
-        :type scheduleUID: str
+        :type schedule_uid: str
+        :param ignore_warnings: If specified and set to ``True`` the operation 
+            will proceed even if nebulon ON reports warnings. It is
+            advised to not ignore warnings. Consequently, the default behavior
+            is that the operation will fail when nebulon ON reports
+            validation errors or warnings.
+        :type ignore_warnings: bool, optional
 
         :returns bool: If the query was successful
 
@@ -1073,7 +1029,7 @@ class SnapshotMixin(NebMixin):
 
         # setup query parameters
         parameters = dict()
-        parameters["scheduleUID"] = GraphQLParam(scheduleUID, "String", True)
+        parameters["scheduleUID"] = GraphQLParam(schedule_uid, "String", True)
 
         # make the request
         response = self._mutation(
@@ -1083,7 +1039,10 @@ class SnapshotMixin(NebMixin):
         )
 
         # convert to object and deliver token
-        token_response = TokenResponse(response)
+        token_response = TokenResponse(
+            response=response,
+            ignore_warnings=ignore_warnings,
+        )
         return token_response.deliver_token()
 
     def get_snapshot_schedules(
@@ -1124,7 +1083,8 @@ class SnapshotMixin(NebMixin):
             parent_volume_uuids: [str],
             name_patterns: [str],
             expiration_seconds: int = None,
-            retention_seconds: int = None
+            retention_seconds: int = None,
+            ignore_warnings: bool = False,
     ):
         """Allows creation of an on-demand snapshot of volumes
 
@@ -1147,6 +1107,12 @@ class SnapshotMixin(NebMixin):
         :param retention_seconds: The number of seconds before a user can delete
             the snapshots.
         :type retention_seconds: int
+        :param ignore_warnings: If specified and set to ``True`` the operation 
+            will proceed even if nebulon ON reports warnings. It is
+            advised to not ignore warnings. Consequently, the default behavior
+            is that the operation will fail when nebulon ON reports
+            validation errors or warnings.
+        :type ignore_warnings: bool, optional
 
         :raises GraphQLError: An error with the GraphQL endpoint.
         :raises Exception: If token delivery failed
@@ -1174,44 +1140,8 @@ class SnapshotMixin(NebMixin):
         )
 
         # convert object
-        token_response = TokenResponse(response)
-        token_response.deliver_token()
-
-    def create_clone(
-            self,
-            create_clone_input: CreateCloneInput
-    ):
-        """Allows creating a read/writeable clone of a volume or snapshot
-
-        Allows the creation of a volume clone from a base volume or snapshot.
-        Clones are read and writeable copies of another volume. Clones can be
-        used to quickly instantiate copies of data and data for recovery
-        purposes when applications require read/write access for copy
-        operations.
-
-        :param create_clone_input: A parameter that describes the clone to
-            create
-        :type create_clone_input: CreateCloneInput
-
-        :raises GraphQLError: An error with the GraphQL endpoint.
-        :raises Exception: If token delivery failed
-        """
-
-        # setup query parameters
-        parameters = dict()
-        parameters["input"] = GraphQLParam(
-            create_clone_input,
-            "CreateCloneInput",
-            True
+        token_response = TokenResponse(
+            response=response,
+            ignore_warnings=ignore_warnings,
         )
-
-        # make the request
-        response = self._mutation(
-            name="createClone",
-            params=parameters,
-            fields=TokenResponse.fields()
-        )
-
-        # convert to object
-        token_response = TokenResponse(response)
         token_response.deliver_token()

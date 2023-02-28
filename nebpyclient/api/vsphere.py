@@ -393,7 +393,8 @@ class VSphereCredentialsMixin(NebMixin):
     def set_vsphere_credentials(
             self,
             npod_uuid: str,
-            credentials_input: UpsertVsphereCredentialsInput
+            credentials_input: UpsertVsphereCredentialsInput,
+            ignore_warnings: bool = False,
     ) -> bool:
         """Sets vCenter credentials for the provided nPod
 
@@ -402,6 +403,12 @@ class VSphereCredentialsMixin(NebMixin):
         :param credentials_input: An input object describing the
             credentials to configure for the provided nPod
         :type credentials_input: UpsertVsphereCredentialsInput
+        :param ignore_warnings: If specified and set to ``True`` the operation 
+            will proceed even if nebulon ON reports warnings. It is
+            advised to not ignore warnings. Consequently, the default behavior
+            is that the operation will fail when nebulon ON reports
+            validation errors or warnings.
+        :type ignore_warnings: bool, optional
 
         :returns bool: If the request was successful
 
@@ -423,23 +430,37 @@ class VSphereCredentialsMixin(NebMixin):
         )
 
         # make the request
+        mutation_name="upsertVsphereCredsV2"
         response = self._mutation(
-            name="upsertVsphereCredsV2",
+            name=mutation_name,
             params=parameters,
             fields=TokenResponse.fields()
         )
 
-        token_response = TokenResponse(response)
-        return token_response.deliver_token()
+        token_response = TokenResponse(
+            response=response,
+            ignore_warnings=ignore_warnings,
+        )
+        delivery_response = token_response.deliver_token()
+
+        # wait for recipe completion
+        self._wait_on_recipes(delivery_response, mutation_name)
 
     def delete_vsphere_credentials(
             self,
-            npod_uuid: str
+            npod_uuid: str,
+            ignore_warnings: bool = False,
     ) -> bool:
         """Removes the vCenter credentials from the provided nPod
 
         :param npod_uuid: Unique identifier of the nPod
         :type npod_uuid: str
+        :param ignore_warnings: If specified and set to ``True`` the operation 
+            will proceed even if nebulon ON reports warnings. It is
+            advised to not ignore warnings. Consequently, the default behavior
+            is that the operation will fail when nebulon ON reports
+            validation errors or warnings.
+        :type ignore_warnings: bool, optional
 
         Returns:
             A boolean that indicates if the request was successfully sent
@@ -460,11 +481,18 @@ class VSphereCredentialsMixin(NebMixin):
         )
 
         # make the request
+        mutation_name="deleteVsphereCredsV2"
         response = self._mutation(
-            name="deleteVsphereCredsV2",
+            name=mutation_name,
             params=parameters,
             fields=TokenResponse.fields()
         )
 
-        token_response = TokenResponse(response)
-        return token_response.deliver_token()
+        token_response = TokenResponse(
+            response=response,
+            ignore_warnings=ignore_warnings,
+        )
+        delivery_response = token_response.deliver_token()
+
+        # wait for recipe completion
+        self._wait_on_recipes(delivery_response, mutation_name)

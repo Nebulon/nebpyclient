@@ -22,7 +22,6 @@ from .npods import NPodSpuInput, \
     BondTransmitHashPolicy
 from .updates import UpdateHistory
 from .tokens import TokenResponse
-from .issues import Issues
 
 __all__ = [
     "SpuSort",
@@ -1126,7 +1125,8 @@ class SpuMixin(NebMixin):
 
     def claim_spu(
             self,
-            spu_serial: str
+            spu_serial: str,
+            ignore_warnings: bool = False,
     ):
         """Adds an unregistered SPU to the organization
 
@@ -1141,6 +1141,12 @@ class SpuMixin(NebMixin):
         :param spu_serial: The serial number of the SPU to register with an
             organization.
         :type spu_serial: str
+        :param ignore_warnings: If specified and set to ``True`` the operation 
+            will proceed even if nebulon ON reports warnings. It is
+            advised to not ignore warnings. Consequently, the default behavior
+            is that the operation will fail when nebulon ON reports
+            validation errors or warnings.
+        :type ignore_warnings: bool, optional
 
         :raises GraphQLError: An error with the GraphQL endpoint.
         :raises Exception: An error when delivering a token to the SPU
@@ -1159,7 +1165,10 @@ class SpuMixin(NebMixin):
         )
 
         # convert to object
-        token_response = TokenResponse(response)
+        token_response = TokenResponse(
+            response=response,
+            ignore_warnings=ignore_warnings,
+        )
         token_response.deliver_token()
 
     def delete_spu_info(
@@ -1196,7 +1205,8 @@ class SpuMixin(NebMixin):
 
     def ping_spu(
             self,
-            spu_serial: str
+            spu_serial: str,
+            ignore_warnings: bool = False,
     ):
         """Turns on the locate LED pattern of the SPU
 
@@ -1208,6 +1218,12 @@ class SpuMixin(NebMixin):
 
         :param spu_serial: The serial number of the SPU
         :type spu_serial: str
+        :param ignore_warnings: If specified and set to ``True`` the operation 
+            will proceed even if nebulon ON reports warnings. It is
+            advised to not ignore warnings. Consequently, the default behavior
+            is that the operation will fail when nebulon ON reports
+            validation errors or warnings.
+        :type ignore_warnings: bool, optional
 
         :raises GraphQLError: An error with the GraphQL endpoint.
         :raises Exception: An error when delivering a token to the SPU
@@ -1226,12 +1242,16 @@ class SpuMixin(NebMixin):
         )
 
         # convert to object
-        token_response = TokenResponse(response)
+        token_response = TokenResponse(
+            response=response,
+            ignore_warnings=ignore_warnings,
+        )
         token_response.deliver_token()
 
     def collect_debug_info(
             self,
             debug_info_input: DebugInfoInput,
+            ignore_warnings: bool = False,
     ):
         """Allows submitting additional debugging information to nebulon ON
 
@@ -1242,6 +1262,12 @@ class SpuMixin(NebMixin):
             for collecting debug information from either services processing units
             or nPods.
         :type debug_info_input: DebugInfoInput
+        :param ignore_warnings: If specified and set to ``True`` the operation 
+            will proceed even if nebulon ON reports warnings. It is
+            advised to not ignore warnings. Consequently, the default behavior
+            is that the operation will fail when nebulon ON reports
+            validation errors or warnings.
+        :type ignore_warnings: bool, optional
 
         :raises GraphQLError: An error with the GraphQL endpoint.
         :raises Exception: An error when delivering a token to the SPU
@@ -1260,12 +1286,16 @@ class SpuMixin(NebMixin):
         )
 
         # convert to object
-        token_response = TokenResponse(response)
+        token_response = TokenResponse(
+            response=response,
+            ignore_warnings=ignore_warnings,
+        )
         token_response.deliver_token()
 
     def cancel_custom_diagnostics(
             self,
-            request_uuid: str = None
+            request_uuid: str = None,
+            ignore_warnings: bool = False,
     ):
         """Allows canceling custom diagnostic commands
 
@@ -1280,6 +1310,12 @@ class SpuMixin(NebMixin):
         :param request_uuid: The unique identifier of the custom diagnostic
             request to cancel
         :type request_uuid: str, optional
+        :param ignore_warnings: If specified and set to ``True`` the operation 
+            will proceed even if nebulon ON reports warnings. It is
+            advised to not ignore warnings. Consequently, the default behavior
+            is that the operation will fail when nebulon ON reports
+            validation errors or warnings.
+        :type ignore_warnings: bool, optional
 
         :raises GraphQLError: An error with the GraphQL endpoint.
         :raises Exception: An error when delivering a token to the SPU
@@ -1298,7 +1334,10 @@ class SpuMixin(NebMixin):
         )
 
         # convert to object
-        token_response = TokenResponse(response)
+        token_response = TokenResponse(
+            response=response,
+            ignore_warnings=ignore_warnings,
+        )
         token_response.deliver_token()
 
     def run_custom_diagnostics(
@@ -1306,7 +1345,8 @@ class SpuMixin(NebMixin):
             spu_serial: str = None,
             npod_uuid: str = None,
             diagnostic_name: str = None,
-            request_uuid: str = None
+            request_uuid: str = None,
+            ignore_warnings: bool = False,
     ):
         """Allows running custom diagnostic commands
 
@@ -1325,6 +1365,12 @@ class SpuMixin(NebMixin):
         :param request_uuid: The unique identifier of the custom diagnostic
             request to run
         :type request_uuid: str, optional
+        :param ignore_warnings: If specified and set to ``True`` the operation 
+            will proceed even if nebulon ON reports warnings. It is
+            advised to not ignore warnings. Consequently, the default behavior
+            is that the operation will fail when nebulon ON reports
+            validation errors or warnings.
+        :type ignore_warnings: bool, optional
 
         :raises GraphQLError: An error with the GraphQL endpoint.
         :raises Exception: An error when delivering a token to the SPU
@@ -1349,17 +1395,27 @@ class SpuMixin(NebMixin):
         )
 
         # convert to object
-        token_response = TokenResponse(response)
+        token_response = TokenResponse(
+            response=response,
+            ignore_warnings=ignore_warnings,
+        )
         token_response.deliver_token()
 
     def release_spu(
             self,
-            spu_serial: str
+            spu_serial: str,
+            ignore_warnings: bool = False,
     ):
         """Removes an SPU from an organization
 
         :param spu_serial: The serial number of the SPU
         :type spu_serial: str
+        :param ignore_warnings: If specified and set to ``True`` the operation 
+            will proceed even if nebulon ON reports warnings. It is
+            advised to not ignore warnings. Consequently, the default behavior
+            is that the operation will fail when nebulon ON reports
+            validation errors or warnings.
+        :type ignore_warnings: bool, optional
 
         :raises GraphQLError: An error with the GraphQL endpoint.
         :raises Exception: An error when delivering a token to the SPU
@@ -1378,13 +1434,17 @@ class SpuMixin(NebMixin):
         )
 
         # convert to object
-        token_response = TokenResponse(response)
+        token_response = TokenResponse(
+            response=response,
+            ignore_warnings=ignore_warnings,
+        )
         token_response.deliver_token()
 
     def set_proxy(
             self,
             spu_serial: str,
-            proxy: str
+            proxy: str,
+            ignore_warnings: bool = False,
     ):
         """Allows configuring a proxy server for an SPU
 
@@ -1392,6 +1452,12 @@ class SpuMixin(NebMixin):
         :type spu_serial: str
         :param proxy: The proxy server IP address
         :type proxy: str
+        :param ignore_warnings: If specified and set to ``True`` the operation 
+            will proceed even if nebulon ON reports warnings. It is
+            advised to not ignore warnings. Consequently, the default behavior
+            is that the operation will fail when nebulon ON reports
+            validation errors or warnings.
+        :type ignore_warnings: bool, optional
 
         :raises GraphQLError: An error with the GraphQL endpoint.
         :raises Exception: An error when delivering a token to the SPU
@@ -1410,12 +1476,16 @@ class SpuMixin(NebMixin):
         )
 
         # convert to object
-        token_response = TokenResponse(response)
+        token_response = TokenResponse(
+            response=response,
+            ignore_warnings=ignore_warnings,
+        )
         token_response.deliver_token()
 
     def replace_spu(
             self,
-            replace_spu_input: ReplaceSpuInput
+            replace_spu_input: ReplaceSpuInput,
+            ignore_warnings: bool = False,
     ):
         """Allows replacing an SPU
 
@@ -1427,6 +1497,12 @@ class SpuMixin(NebMixin):
         :param replace_spu_input: An input object describing the parameters
             for SPU replacement
         :type replace_spu_input: ReplaceSpuInput
+        :param ignore_warnings: If specified and set to ``True`` the operation 
+            will proceed even if nebulon ON reports warnings. It is
+            advised to not ignore warnings. Consequently, the default behavior
+            is that the operation will fail when nebulon ON reports
+            validation errors or warnings.
+        :type ignore_warnings: bool, optional
 
         :raises GraphQLError: An error with the GraphQL endpoint.
         :raises Exception: An error when delivering a token to the SPU
@@ -1448,12 +1524,16 @@ class SpuMixin(NebMixin):
         )
 
         # convert to object
-        token_response = TokenResponse(response)
+        token_response = TokenResponse(
+            response=response,
+            ignore_warnings=ignore_warnings,
+        )
         token_response.deliver_token()
 
     def shutdown_spu(
             self,
-            spu_serial: str
+            spu_serial: str,
+            ignore_warnings: bool = False,
     ):
         """Allows shutting down a services processing unit (SPU) 
 
@@ -1463,6 +1543,12 @@ class SpuMixin(NebMixin):
 
         :param spu_serial: The serial number of the SPU to shut down
         :type spu_serial: str
+        :param ignore_warnings: If specified and set to ``True`` the operation 
+            will proceed even if nebulon ON reports warnings. It is
+            advised to not ignore warnings. Consequently, the default behavior
+            is that the operation will fail when nebulon ON reports
+            validation errors or warnings.
+        :type ignore_warnings: bool, optional
 
         :raises GraphQLError: An error with the GraphQL endpoint.
         :raises Exception: An error when delivering a token to the SPU
@@ -1483,13 +1569,16 @@ class SpuMixin(NebMixin):
         )
 
         # convert to object
-        token_response = TokenResponse(response)
+        token_response = TokenResponse(
+            response=response,
+            ignore_warnings=ignore_warnings,
+        )
         token_response.deliver_token()
 
     def set_ntp_servers(
             self,
             ntp_servers_input: SetNTPServersInput,
-            ignore_warnings: bool = False
+            ignore_warnings: bool = False,
     ):
         """Allows configuring the NTP server for an SPU or nPod
 
@@ -1499,19 +1588,16 @@ class SpuMixin(NebMixin):
         for their SPUs or nPod.
 
         :param ntp_servers_input: The NTP Server configuration to use
-        :type ntp_servers_input: SetNTPServersInpu
-        :param ignore_warnings: If specified and set to ``True`` the nPod creation
-            will proceed even if nebulon ON reports warnings. It is advised to
-            not ignore warnings. Consequently, the default behavior is that
-            the nPod creation will fail when nebulon ON reports validation
-            errors.
-        :type ignore_warnings: bool, optionalt
+        :type ntp_servers_input: SetNTPServersInput
+        :param ignore_warnings: If specified and set to ``True`` the operation 
+            will proceed even if nebulon ON reports warnings. It is
+            advised to not ignore warnings. Consequently, the default behavior
+            is that the operation will fail when nebulon ON reports
+            validation errors or warnings.
+        :type ignore_warnings: bool, optional
 
         :raises GraphQLError: An error with the GraphQL endpoint.
         :raises Exception: An error when delivering a token to the SPU
-        :raises Exception: When nebulon ON reports validation errors or warnings
-            and the ``ignore_warnings`` parameter is not set to ``True`` or if the
-            nPod creation times out.
         """
 
         # setup query parameters
@@ -1529,16 +1615,17 @@ class SpuMixin(NebMixin):
             fields=TokenResponse.fields()
         )
 
-        issues = Issues(response=response["issues"])
-        issues.assert_no_issues(ignore_warnings=ignore_warnings)
-
         # convert to object
-        token_response = TokenResponse(response)
+        token_response = TokenResponse(
+            response=response,
+            ignore_warnings=ignore_warnings,
+        )
         token_response.deliver_token()
 
     def secure_erase_spu(
             self,
-            spu_serial: str
+            spu_serial: str,
+            ignore_warnings: bool = False,
     ):
         """Allows to secure-erase data on a services processing unit (SPU)
 
@@ -1548,6 +1635,12 @@ class SpuMixin(NebMixin):
 
         :param spu_serial: The serial number of the SPU to secure-erase
         :type spu_serial: str
+        :param ignore_warnings: If specified and set to ``True`` the operation 
+            will proceed even if nebulon ON reports warnings. It is
+            advised to not ignore warnings. Consequently, the default behavior
+            is that the operation will fail when nebulon ON reports
+            validation errors or warnings.
+        :type ignore_warnings: bool, optional
 
         :raises GraphQLError: An error with the GraphQL endpoint.
         :raises Exception: An error when delivering a token to the SPU
@@ -1571,5 +1664,8 @@ class SpuMixin(NebMixin):
         )
 
         # convert to object
-        token_response = TokenResponse(response)
+        token_response = TokenResponse(
+            response=response,
+            ignore_warnings=ignore_warnings,
+        )
         token_response.deliver_token()

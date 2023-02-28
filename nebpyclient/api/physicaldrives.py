@@ -937,13 +937,20 @@ class PhysicalDriveMixin(NebMixin):
 
     def locate_physical_drive(
             self,
-            locate_pd_input: LocatePhysicalDriveInput
+            locate_pd_input: LocatePhysicalDriveInput,
+            ignore_warnings: bool = False,
     ):
         """Turn on the locate LED of a physical drive
 
         :param locate_pd_input: A parameter describing the target
             physical drive and duration of locate.
         :type locate_pd_input: LocatePhysicalDriveInput
+        :param ignore_warnings: If specified and set to ``True`` the operation 
+            will proceed even if nebulon ON reports warnings. It is
+            advised to not ignore warnings. Consequently, the default behavior
+            is that the operation will fail when nebulon ON reports
+            validation errors or warnings.
+        :type ignore_warnings: bool, optional
 
         :raises GraphQLError: An error with the GraphQL endpoint.
         :raises Exception: When token delivery to the relevant SPU fails
@@ -965,18 +972,28 @@ class PhysicalDriveMixin(NebMixin):
         )
 
         # convert to object
-        token_response = TokenResponse(response)
+        token_response = TokenResponse(
+            response=response,
+            ignore_warnings=ignore_warnings,
+        )
         token_response.deliver_token()
 
     def update_physical_drive_firmware(
             self,
-            update_pd_firmware_input: UpdatePhysicalDriveFirmwareInput
+            update_pd_firmware_input: UpdatePhysicalDriveFirmwareInput,
+            ignore_warnings: bool = False,
     ):
         """Update the firmware of physical drives
 
         :param update_pd_firmware_input: A parameter describing the details
             of the update that identifies the physical drive targets
         :type update_pd_firmware_input: UpdatePhysicalDriveFirmwareInput
+        :param ignore_warnings: If specified and set to ``True`` the operation 
+            will proceed even if nebulon ON reports warnings. It is
+            advised to not ignore warnings. Consequently, the default behavior
+            is that the operation will fail when nebulon ON reports
+            validation errors or warnings.
+        :type ignore_warnings: bool, optional
 
         :raises GraphQLError: An error with the GraphQL endpoint.
         :raises Exception: When token delivery to the relevant SPU fails
@@ -998,5 +1015,8 @@ class PhysicalDriveMixin(NebMixin):
         )
 
         # convert to object
-        token_response = TokenResponse(response)
+        token_response = TokenResponse(
+            response=response,
+            ignore_warnings=ignore_warnings,
+        )
         token_response.deliver_token()

@@ -10,15 +10,16 @@
 # ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
 #
-
+from typing import List
 from .graphqlclient import GraphQLParam, NebMixin
 from datetime import datetime
-from .common import PageInput, read_value
+from .common import PageInput, read_value, NebEnum
 from .filters import StringFilter, UUIDFilter
 from .sorting import SortDirection
 
 __all__ = [
     "DIMM",
+    "LOMCredentials",
     "Host",
     "HostSort",
     "HostFilter",
@@ -300,6 +301,94 @@ class DIMM:
         ]
 
 
+class LOMStatus(NebEnum):
+    """LOM Status"""
+    NotConnected = "NotConnected"
+    Normal = "Normal"
+    ConnectionError = "ConnectionError"
+    Unknown = "Unknown"
+
+
+class LOMCredentials:
+    """LOM Credentials object
+    
+    Represents LOM login information and status for SPU LOM
+    integration.
+    """
+
+    def __init__(
+            self,
+            response: dict
+    ):
+        """Constructs a new host object
+
+        This constructor expects a ``dict`` object from the nebulon ON API. It
+        will check the returned data against the currently implemented schema
+        of the SDK.
+
+        :param response: The JSON response from the server
+        :type response: dict
+
+        :raises ValueError: An error if illegal data is returned from the server
+        """
+
+        self.__username = read_value(
+            "username", response, str, True)
+        self.__url = read_value(
+            "url", response, str, True)
+        self.__insecure = read_value(
+            "insecure", response, bool, True)
+        self.__last_connected = read_value(
+            "lastConnected", response, datetime, False)
+        self.__error = read_value(
+            "error", response, str, True)
+        self.__status = read_value(
+            "status", response, LOMStatus, True)
+        
+
+    
+    @property
+    def username(self) -> str:
+        """Username for LOM credentials"""
+        return self.__username
+    
+    @property
+    def url(self) -> str:
+        """Password for LOM credentials"""
+        return self.__url
+    
+    @property
+    def insecure(self) -> bool:
+        """Allow update if certificate is not valid"""
+        return self.__insecure
+    
+    @property
+    def last_connected(self) -> datetime:
+        """Date and time when the SPU last connected to LOM"""
+        return self.__last_connected
+    
+    @property
+    def error(self) -> str:
+        """Error message associated with the LOM credentials"""
+        return self.__error
+    
+    @property
+    def status(self) -> LOMStatus:
+        """Current LOM status"""
+        return self.__status
+
+    @staticmethod
+    def fields():
+        return [
+            "username",
+            "url",
+            "insecure",
+            "lastConnected",
+            "error",
+            "status",
+        ]
+
+
 class Host:
     """A host or server that contains a nebulon SPU"""
 
@@ -365,6 +454,10 @@ class Host:
             "lomAddress", response, str, True)
         self.__boot_time = read_value(
             "bootTime", response, datetime, True)
+        self.__lom_credentials = read_value(
+            "lomCredentials", response, LOMCredentials, False)
+        self.__immutable_boot_volume_pending = read_value(
+            "immutableBootVolumePending", response, bool, True)
 
     @property
     def uuid(self) -> str:
@@ -402,7 +495,7 @@ class Host:
         return self.__npod_uuid
 
     @property
-    def spu_serials(self) -> [str]:
+    def spu_serials(self) -> List[str]:
         """List of SPU serial numbers that are installed in this host"""
         return self.__spu_serials
 
@@ -457,7 +550,7 @@ class Host:
         return self.__dimm_count
 
     @property
-    def dimms(self) -> [DIMM]:
+    def dimms(self) -> List[DIMM]:
         """List of DIMMs installed in this host"""
         return self.__dimms
 
@@ -480,6 +573,20 @@ class Host:
     def boot_time(self) -> datetime:
         """Date and time when the host booted"""
         return self.__boot_time
+    
+    @property
+    def lom_credentials(self)-> LOMCredentials:
+        """Hosts LOM credentials"""
+        return self.__lom_credentials
+    
+    @property
+    def immutable_boot_volume_pending(self) -> bool:
+        """
+        If immutableBootVolumePending is true, then the SPUs in the host are
+        prepared to take a snapshot of the boot volume for the future reverting
+        when the host next reboots.
+        """
+        return self.__immutable_boot_volume_pending
 
     @staticmethod
     def fields():
@@ -507,6 +614,8 @@ class Host:
             "lomHostname",
             "lomAddress",
             "bootTime",
+            f"lomCredentials{{{','.join(LOMCredentials.fields())}}}",
+            "immutableBootVolumePending",
         ]
 
 
@@ -547,7 +656,7 @@ class HostList:
             "items", response, Host, True)
 
     @property
-    def items(self) -> [Host]:
+    def items(self) -> List[Host]:
         """List of hosts in the pagination list"""
         return self.__items
 

@@ -11,19 +11,15 @@
 # DEALINGS IN THE SOFTWARE.
 #
 
-from time import sleep
+from typing import List
 from .graphqlclient import GraphQLParam, NebMixin
 from datetime import datetime
 from .common import NebEnum, PageInput, read_value
 from .filters import StringFilter, UUIDFilter
 from .sorting import SortDirection
-from .recipe import RecipeState, NPodRecipeFilter
 from .tokens import TokenResponse
 from .issues import Issues
 from .updates import UpdateHistory, NPodRecommendedPackage
-
-_TIMEOUT_SECONDS = 60 * 45
-"""Timeout to wait for nPod creation to complete"""
 
 __all__ = [
     "BondType",
@@ -40,6 +36,7 @@ __all__ = [
     "NPodCustomDiagnostic",
     "ExpectedNPodCapacity",
     "UpdateNPodMembersInput",
+    "UpdateImmutableBootInput",
     "NPodsMixin"
 ]
 
@@ -101,11 +98,6 @@ class BondType(NebEnum):
     BondMode8023ad = "BondMode8023ad"
     """
     Use LACP (IEEE 802.3ad) for link aggregation.
-    """
-
-    BOND_MODE_BALANCE_ALB = "BondModeBalanceALB"
-    """
-    Use balance ALB (bonding mode 6) for load balancing and link aggregation.
     """
 
 
@@ -979,7 +971,7 @@ class IPInfoConfigInput:
             self,
             dhcp: bool,
             bond_mode: BondType,
-            interfaces: [str],
+            interfaces: List[str],
             address: str = "",
             netmask_bits: int = 0,
             gateway: str = "",
@@ -1009,7 +1001,7 @@ class IPInfoConfigInput:
             shall be specified. If set to a link aggregation mode both data
             interface names shall be specified. Options are `enP8p1s0f0np0` and
             `enP8p1s0f1np1`.
-        :type interfaces: [str]
+        :type interfaces: List[str]
         :param address: The IPv4 or IPv6 address for the data network interface.
             If CIDR format is used, the ``netmask_bits`` value is ignored. If
             ``dhcp`` is set to ``True``, this field must not be specified.
@@ -1161,7 +1153,7 @@ class NPodSpuInput:
             self,
             spu_serial: str,
             spu_name: str = None,
-            spu_data_ips: [IPInfoConfigInput] = None
+            spu_data_ips: List[IPInfoConfigInput] = None
     ):
         """Constructs a new NPodSpuInput object
 
@@ -1173,7 +1165,7 @@ class NPodSpuInput:
         :param spu_name: A human readable name for the SPU
         :type spu_name: str, optional
         :param spu_data_ips: Allows configuring the SPUs network interfaces
-        :type spu_data_ips: [IPInfoConfigInput], optional
+        :type spu_data_ips: List[IPInfoConfigInput], optional
         """
 
         self.__spu_name = spu_name
@@ -1194,7 +1186,7 @@ class NPodSpuInput:
         return self.__spu_serial
 
     @property
-    def spu_data_ips(self) -> [IPInfoConfigInput]:
+    def spu_data_ips(self) -> List[IPInfoConfigInput]:
         """Allows configuring the SPUs network interfaces"""
         return self.__spu_data_ips
 
@@ -1221,7 +1213,7 @@ class CreateNPodInput:
             self,
             name: str,
             npod_group_uuid: str,
-            spus: [NPodSpuInput],
+            spus: List[NPodSpuInput],
             npod_template_uuid: str,
             note: str = None,
             timezone: str = 'UTC'
@@ -1236,7 +1228,7 @@ class CreateNPodInput:
         :param spus: List of SPU configuration information that will be used
             in the new nPod. At least 3 SPU configuration information objects
             must be specified
-        :type spus: [NPodSpuInput]
+        :type spus: List[NPodSpuInput]
         :param npod_template_uuid: The unique identifier of the nPod template
             to use for the new nPod
         :type npod_template_uuid: str
@@ -1265,7 +1257,7 @@ class CreateNPodInput:
         return self.__npod_group_uuid
 
     @property
-    def spus(self) -> [NPodSpuInput]:
+    def spus(self) -> List[NPodSpuInput]:
         """List of SPU configuration information for SPUs to use"""
         return self.__spus
 
@@ -1352,6 +1344,12 @@ class NPod:
             "creationTime", response, datetime, True)
         self.__recommended_package = read_value(
             "recommendedPackage", response, NPodRecommendedPackage, False)
+        self.__immutable_boot_volumes = read_value(
+            "immutableBootVolumes", response, bool, True)
+        self.__immutable_boot_volumes_note = read_value(
+            "immutableBootVolumesNote", response, str, False)
+        self.__immutable_boot_volumes_snapshot_time = read_value(
+            "immutableBootVolumesSnapshotTime", response, datetime, False)
 
     @property
     def uuid(self) -> str:
@@ -1374,7 +1372,7 @@ class NPod:
         return self.__npod_group_uuid
 
     @property
-    def volume_uuids(self) -> [str]:
+    def volume_uuids(self) -> List[str]:
         """List of volume identifiers defined in this nPod"""
         return self.__volume_uuids
 
@@ -1409,7 +1407,7 @@ class NPod:
         return self.__snapshot_uuids
 
     @property
-    def update_history(self) -> [UpdateHistory]:
+    def update_history(self) -> List[UpdateHistory]:
         """List of updates performed on this nPod"""
         return self.__update_history
 
@@ -1427,6 +1425,23 @@ class NPod:
     def recommended_package(self) -> NPodRecommendedPackage:
         """Unique identifier for the nPod template used during nPod creation"""
         return self.__recommended_package
+    
+    @property
+    def immutable_boot_volumes(self) -> bool:
+        """If immmutable boot is enabled on nebulon nPod"""
+        return self.__immutable_boot_volumes
+
+    @property
+    def immutable_boot_volumes_note(self) -> str:
+        """A note regarding immutable boot volumes"""
+        return self.__immutable_boot_volumes_note
+
+    @property
+    def immutable_boot_volumes_snapshot_time(self) -> datetime:
+        """
+        Point in time at which the immutable boot volume feature was turned on.
+        """
+        return self.__immutable_boot_volumes_snapshot_time
 
     @staticmethod
     def fields():
@@ -1445,7 +1460,10 @@ class NPod:
             "updateHistory{%s}" % ",".join(UpdateHistory.fields()),
             "nPodTemplate{uuid}"
             "creationTime",
-            "recommendedPackage{%s}" % ",".join(NPodRecommendedPackage.fields())
+            "recommendedPackage{%s}" % ",".join(NPodRecommendedPackage.fields()),
+            "immutableBootVolumes",
+            "immutableBootVolumesNote",
+            "immutableBootVolumesSnapshotTime",
         ]
 
 
@@ -1676,7 +1694,7 @@ class UpdateNPodMembersInput:
 
     def __init__(
         self,
-        add_spus: [NPodSpuInput]
+        add_spus: List[NPodSpuInput]
         ):
         """ Constructs a new input object to update an nPod
 
@@ -1684,12 +1702,12 @@ class UpdateNPodMembersInput:
         with the given services processing units.
 
         :param add_spus: A list of input SPUs to expand the nPod.
-        :type add_spus: [NPodSpuInput]
+        :type add_spus: List[NPodSpuInput]
         """
         self.__add_spus = add_spus
     
     @property
-    def add_spus(self) -> [NPodSpuInput]:
+    def add_spus(self) -> List[NPodSpuInput]:
         """The list of SPUs to expand the nPod"""
         return self.__add_spus
 
@@ -1698,6 +1716,102 @@ class UpdateNPodMembersInput:
         result = dict()
         result["addSPUs"] = self.add_spus
         return result
+
+
+class UpdateImmutableBootInput:
+    """Constructs a new input object to update an nPods immutable boot"""
+    def __init__(
+        self,
+        enable: bool,
+        snapshot_on_host_reboot: bool=None,
+        note: str=None,
+        preserve_snapshots: bool=None,
+    ) -> None:
+        """
+        Constructs a new input object to update an nPods immutable boot
+        :param enable: Enables or disables immutable boot volumes.
+        :type enable: bool
+        :param note: Sets a note regarding immutable boot volumes. 
+            May only be specified while enabling.
+        :type note: str
+        :param snapshot_on_host_reboot: When enabling immutable boot volumes,
+            wait until the next host reboot to actually take the snapshot. 
+            May only be specified while enabling. Defaults to true.
+        :type snapshot_on_host_reboot: bool
+        :param preserveSnapshots: When disabling immutable boot volumes, retain 
+            the snapshots of thier immutable image. The snapshots are now normal 
+            snapshots and may be deleted. May only be specified when disabling.
+        :type preserveSnapshots: str
+        """
+        self.__enable = enable
+        self.__snapshot_on_host_reboot = snapshot_on_host_reboot
+        self.__note = note
+        self.__preserve_snapshots = preserve_snapshots
+
+    @property
+    def enable(self) -> bool:
+        """Enables or disables immutable boot volumes"""
+        return self.__enable
+        
+    @property
+    def snapshot_on_host_reboot(self) -> bool:
+        """
+        When enabling immutable boot volumes, wait until the next host reboot 
+        to actually take the snapshot.  May only be specified while enabling.
+        Defaults to true.
+        """
+        return self.__snapshot_on_host_reboot
+
+    @property
+    def note(self) -> str:
+        """Sets a note regarding immutable boot volumes.  May only be specified while enabling."""
+        return self.__note
+    
+    @property
+    def preserve_snapshots(self) -> bool:
+
+        """
+        When disabling immutable boot volumes, retain the snapshots of thier
+        immutable image. The snapshots are now normal snapshots and may be
+        deleted. May only be specified when disabling.
+        """
+        return self.__preserve_snapshots
+
+    @property
+    def as_dict(self):
+        result = dict()
+        result["enable"] = self.enable
+        result["snapshotOnHostReboot"] = self.snapshot_on_host_reboot
+        result["note"] = self.note
+        result["preserveSnapshots"] = self.preserve_snapshots
+        return result
+
+
+class UpdateNPodTokenInput:
+    """Constructs a new input object to update an nPod
+    """
+    def __init__(
+        self,
+        immutable_boot_volumes_input: UpdateImmutableBootInput,
+    ):
+        """
+        Constructs a new input object to update an nPod
+        :param immutable_boot_volumes_input: Enables or disables immutable boot volumes.
+        :type immutable_boot_volumes_input: UpdateImmutableBootInput
+        """
+        self.__immutable_boot_volumes_input = immutable_boot_volumes_input
+
+    @property
+    def immutable_boot_volumes(self) -> UpdateImmutableBootInput:
+        """Enables or disables immutable boot volumes"""
+        return self.__immutable_boot_volumes_input
+
+    @property
+    def as_dict(self):
+        result = dict()
+        result["immutableBootVolumes"] = self.immutable_boot_volumes
+        return result
+
 
 class NPodsMixin(NebMixin):
     """Mixin to add nPod related methods to the GraphQL client"""
@@ -1749,13 +1863,13 @@ class NPodsMixin(NebMixin):
 
     def __get_new_pod_issues(
             self,
-            spus: [NPodSpuInput]
+            spus: List[NPodSpuInput]
     ) -> Issues:
         """Internal method that checks for issues during nPod creation
 
         :param spus: List of SPU configurations that will be used for the new
             nPod
-        :type spus: [NPodSpuInput], optional
+        :type spus: List[NPodSpuInput], optional
         :returns Issues: A object describing any warnings or errors that were
             detected during nPod creation pre-flight checks.
         """
@@ -1825,75 +1939,42 @@ class NPodsMixin(NebMixin):
         )
 
         # make the request
+        mutation_name = "createNPod"
         response = self._mutation(
-            name="createNPod",
+            name=mutation_name,
             params=parameters,
             fields=TokenResponse.fields()
         )
 
         # convert to object and deliver token
-        token_response = TokenResponse(response)
+        token_response = TokenResponse(
+            response=response,
+            ignore_warnings=ignore_warnings,
+        )
         delivery_response = token_response.deliver_token()
 
         # wait for recipe completion
-        # TODO: Nebulon ON now returns a different response
-        recipe_uuid = delivery_response["recipe_uuid_to_wait_on"]
+        self._wait_on_recipes(delivery_response, mutation_name)
+
         npod_uuid = delivery_response["npod_uuid_to_wait_on"]
-        npod_recipe_filter = NPodRecipeFilter(
-                npod_uuid=npod_uuid,
-                recipe_uuid=recipe_uuid)
-
-        # set a custom timeout for the nPod creation process
-        start = datetime.now()
-
-        while True:
-            sleep(5)
-
-            recipes = self.get_npod_recipes(npod_recipe_filter=npod_recipe_filter)
-
-            # if there is no record in the cloud wait a few more seconds
-            # this case should not exist, but is a safety measure for a
-            # potential race condition
-            if len(recipes.items) == 0:
-                continue
-
-            # based on the query there should be exactly one
-            recipe = recipes.items[0]
-
-            if recipe.state == RecipeState.Failed:
-                raise Exception(f"nPod creation failed: {recipe.status}")
-
-            if recipe.state == RecipeState.Timeout:
-                raise Exception(f"nPod creation timeout: {recipe.status}")
-
-            if recipe.state == RecipeState.Cancelled:
-                raise Exception(f"nPod creation cancelled: {recipe.status}")
-
-            if recipe.state == RecipeState.Completed:
-                npod_list = self.get_npods(
-                    npod_filter=NPodFilter(
-                        uuid=UUIDFilter(
-                            equals=npod_uuid
-                        )
-                    )
+        npod_list = self.get_npods(
+            npod_filter=NPodFilter(
+                uuid=UUIDFilter(
+                    equals=npod_uuid
                 )
+            )
+        )
 
-                if npod_list.filtered_count == 0:
-                    continue
+        if npod_list.filtered_count != 0:
+            return npod_list.items[0]
 
-                return npod_list.items[0]
-
-            # Wait time remaining until timeout
-            total_duration = (datetime.now() - start).seconds
-            time_remaining = _TIMEOUT_SECONDS - total_duration
-
-            if time_remaining <= 0:
-                raise Exception("nPod creation timed out")
+        return None
 
     def delete_npod(
             self,
             uuid: str,
-            secure_erase: bool = False
+            secure_erase: bool = False,
+            ignore_warnings: bool = False,
     ):
         """Delete an existing nPod
 
@@ -1930,6 +2011,12 @@ class NPodsMixin(NebMixin):
             server SSDs. Only use this flag when decommissioning storage as the
             secure_wipe procedure will take some time.
         :type secure_erase: bool, optional
+        :param ignore_warnings: If specified and set to ``True`` the operation 
+            will proceed even if nebulon ON reports warnings. It is
+            advised to not ignore warnings. Consequently, the default behavior
+            is that the operation will fail when nebulon ON reports
+            validation errors or warnings.
+        :type ignore_warnings: bool, optional
 
         :raises GraphQLError: An error with the GraphQL endpoint.
         :raises Exception: When there were issues delivering the security token
@@ -1958,13 +2045,17 @@ class NPodsMixin(NebMixin):
 
         # convert to object and deliver token
         # TODO: Implement recipe engine v2 that waits for SPU availability
-        token_response = TokenResponse(response)
+        token_response = TokenResponse(
+            response=response,
+            ignore_warnings=ignore_warnings,
+        )
         token_response.deliver_token()
 
     def set_npod_timezone(
             self,
             uuid: str,
-            set_npod_timezone_input: SetNPodTimeZoneInput
+            set_npod_timezone_input: SetNPodTimeZoneInput,
+            ignore_warnings: bool = False,
     ):
         """Allows setting the timezone for all SPUs in an nPod
 
@@ -1973,6 +2064,12 @@ class NPodsMixin(NebMixin):
         :param set_npod_timezone_input: A parameter describing the timezone
             information that shall be applied to the SPUs in the nPod.
         :type set_npod_timezone_input: SetNPodTimeZoneInput
+        :param ignore_warnings: If specified and set to ``True`` the operation 
+            will proceed even if nebulon ON reports warnings. It is
+            advised to not ignore warnings. Consequently, the default behavior
+            is that the operation will fail when nebulon ON reports
+            validation errors or warnings.
+        :type ignore_warnings: bool, optional
 
         :raises GraphQLError: An error with the GraphQL endpoint.
         :raises Exception: When there were issues delivering the security token
@@ -1997,12 +2094,16 @@ class NPodsMixin(NebMixin):
         )
 
         # convert to object and deliver token
-        token_response = TokenResponse(response)
+        token_response = TokenResponse(
+            response=response,
+            ignore_warnings=ignore_warnings,
+        )
         token_response.deliver_token()
 
     def collect_debug_info(
             self,
-            debug_info_input: DebugInfoInput
+            debug_info_input: DebugInfoInput,
+            ignore_warnings: bool = False,
     ):
         """Allows sending verbose diagnostic information to nebulon ON
 
@@ -2013,6 +2114,12 @@ class NPodsMixin(NebMixin):
         :param debug_info_input: A parameter that describes what information to
             collect from which infrastructure.
         :type debug_info_input: DebugInfoInput
+        :param ignore_warnings: If specified and set to ``True`` the operation 
+            will proceed even if nebulon ON reports warnings. It is
+            advised to not ignore warnings. Consequently, the default behavior
+            is that the operation will fail when nebulon ON reports
+            validation errors or warnings.
+        :type ignore_warnings: bool, optional
 
         :raises GraphQLError: An error with the GraphQL endpoint.
         :raises Exception: When there were issues delivering the security token
@@ -2035,13 +2142,17 @@ class NPodsMixin(NebMixin):
         )
 
         # convert to object
-        token_response = TokenResponse(response)
+        token_response = TokenResponse(
+            response=response,
+            ignore_warnings=ignore_warnings,
+        )
         token_response.deliver_token()
     
     def update_npod_members(
         self,
         uuid: str,
-        update_npod_members_input: UpdateNPodMembersInput
+        update_npod_members_input: UpdateNPodMembersInput,
+        ignore_warnings: bool = False,
     ) -> NPod:
         """ Allows expanding an existing nPod with additional SPUs
         
@@ -2054,6 +2165,12 @@ class NPodsMixin(NebMixin):
         :param update_npod_members_input: An input object describing the
             parameters for updating nPod
         :type update_npod_members_input: UpdateNPodMembersInput
+        :param ignore_warnings: If specified and set to ``True`` the operation 
+            will proceed even if nebulon ON reports warnings. It is
+            advised to not ignore warnings. Consequently, the default behavior
+            is that the operation will fail when nebulon ON reports
+            validation errors or warnings.
+        :type ignore_warnings: bool, optional
 
         :returns NPod: The new nPod
 
@@ -2077,68 +2194,106 @@ class NPodsMixin(NebMixin):
         )
 
         # make the request
+        mutation_name = "updateNPodMembers"
         response = self._mutation(
-            name="updateNPodMembers",
+            name=mutation_name,
             params=parameters,
             fields=TokenResponse.fields()
         )
 
         # convert to object and deliver token
-        token_response = TokenResponse(response)
+        token_response = TokenResponse(
+            response=response,
+            ignore_warnings=ignore_warnings,
+        )
         delivery_response = token_response.deliver_token()
 
         # wait for recipe completion
-        # TODO: Nebulon ON now returns a different response
-        recipe_uuid = delivery_response["recipe_uuid_to_wait_on"]
+        self._wait_on_recipes(delivery_response, mutation_name)
+
         npod_uuid = delivery_response["npod_uuid_to_wait_on"]
-        npod_recipe_filter = NPodRecipeFilter(
-                npod_uuid=npod_uuid,
-                recipe_uuid=recipe_uuid)
+        npod_list = self.get_npods(
+            npod_filter=NPodFilter(
+                uuid=UUIDFilter(
+                    equals=npod_uuid
+                )
+            )
+        )
 
-        # set a custom timeout for the update nPod members process
-        start = datetime.now()
+        if npod_list.filtered_count != 0:
+            return npod_list.items[0]
 
-        while True:
-            sleep(5)
+        return None
 
-            recipes = self.get_npod_recipes(npod_recipe_filter=npod_recipe_filter)
+    def update_npod_immutable_boot(
+        self,
+        uuid: str,
+        immutable_boot_volumes_input: UpdateImmutableBootInput,
+        ignore_warnings: bool = False,
+    ) -> NPod:
+        """Parameters for updating an nPod
+        :param uuid: The unique identifier of the nPod to update.
+        :type uuid: str
+        :param immutable_boot_volumes: Enables or disables immutable boot volumes.
+        :type immutable_boot_volumes: UpdateImmutableBootInput
+        :param ignore_warnings: If specified and set to ``True`` the operation 
+            will proceed even if nebulon ON reports warnings. It is
+            advised to not ignore warnings. Consequently, the default behavior
+            is that the operation will fail when nebulon ON reports
+            validation errors or warnings.
+        :type ignore_warnings: bool, optional
 
-            # if there is no record in the cloud wait a few more seconds
-            # this case should not exist, but is a safety measure for a
-            # potential race condition
-            if len(recipes.items) != 0:
 
-                # based on the query there should be exactly one
-                recipe = recipes.items[0]
+        :returns NPod: The nPod to witch the token was sent
+        :raises GraphQLError: An error with the GraphQL endpoint.
+        :raises Exception: When nebulon ON reports validation errors or warnings
+            and the ``ignore_warnings`` parameter is not set to ``True`` or if
+            the update nPod members times out.
+        """
+        # setup mutation parameters
+        parameters = dict()
+        parameters["uuid"] = GraphQLParam(
+            uuid,
+            "UUID",
+            True
+        )
+        update_npod_token_input = UpdateNPodTokenInput(
+            immutable_boot_volumes_input=immutable_boot_volumes_input
+        )
+        parameters["input"] = GraphQLParam(
+            update_npod_token_input,
+            "UpdateNPodTokenInput",
+            True
+        )
 
-                if recipe.state == RecipeState.Failed:
-                    raise Exception(f"update nPod members failed: {recipe.status}")
+        # make the request
+        mutation_name = "updateNPodToken"
+        response = self._mutation(
+            name=mutation_name,
+            params=parameters,
+            fields=TokenResponse.fields()
+        )
 
-                if recipe.state == RecipeState.Timeout:
-                    raise Exception(f"update nPod members timeout: {recipe.status}")
+        # convert to object and deliver token
+        token_response = TokenResponse(
+            response=response,
+            ignore_warnings=ignore_warnings,
+        )
+        delivery_response = token_response.deliver_token()
 
-                if recipe.state == RecipeState.Cancelled:
-                    raise Exception(f"update nPod members cancelled: {recipe.status}")
+        # wait for recipe completion
+        self._wait_on_recipes(delivery_response, mutation_name)
 
-                if recipe.state == RecipeState.Completed:
-                    npod_list = self.get_npods(
-                        npod_filter=NPodFilter(
-                            uuid=UUIDFilter(
-                                equals=npod_uuid
-                            )
-                        )
-                    )
+        npod_uuid = delivery_response["npod_uuid_to_wait_on"]
+        npod_list = self.get_npods(
+            npod_filter=NPodFilter(
+                uuid=UUIDFilter(
+                    equals=npod_uuid
+                )
+            )
+        )
 
-                    if npod_list.filtered_count == 0:
-                        break
+        if npod_list.filtered_count != 0:
+            return npod_list.items[0]
 
-                    return npod_list.items[0]
-
-            # Wait time remaining until timeout
-            total_duration = (datetime.now() - start).total_seconds()
-            time_remaining = _TIMEOUT_SECONDS - total_duration
-
-            if time_remaining <= 0:
-                raise Exception("update nPod members timed out")
-
-        
+        return None

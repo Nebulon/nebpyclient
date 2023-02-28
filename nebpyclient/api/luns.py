@@ -11,14 +11,11 @@
 # DEALINGS IN THE SOFTWARE.
 #
 
-from time import sleep
-from datetime import datetime
+from typing import List
 from .graphqlclient import GraphQLParam, NebMixin
 from .common import PageInput, read_value
 from .filters import UUIDFilter, IntFilter, StringFilter
 from .sorting import SortDirection
-from .recipe import RecipeState, NPodRecipeFilter
-from .npods import _TIMEOUT_SECONDS
 from .tokens import TokenResponse
 
 __all__ = [
@@ -184,8 +181,8 @@ class CreateLUNInput:
             self,
             volume_uuid: str,
             lun_id: int = None,
-            host_uuids: [str] = None,
-            spu_serials: [str] = None,
+            host_uuids: List[str] = None,
+            spu_serials: List[str] = None,
             npod_lun: bool = None,
             local: bool = None
     ):
@@ -221,11 +218,11 @@ class CreateLUNInput:
         :param host_uuids: List of host UUIDs that identify the hosts the
             volume shall be exported to. Only a single LUN will be created for
             each host in the provided list.
-        :type host_uuids: [str], optional
+        :type host_uuids: List[str], optional
         :param spu_serials: List of SPU serials that identify the serials the
             volume shall be exported to. Only a single LUN will be created for
             each SPU in the provided list.
-        :type spu_serials: [str], optional
+        :type spu_serials: List[str], optional
         :param npod_lun: If specified and set to ``True`` a LUN will be created
             for each host in the nPod. If not specified, this parameter defaults
             to ``False`` and either ``host_uuids`` or ``spu_serials`` must be
@@ -249,12 +246,12 @@ class CreateLUNInput:
         return self.__volume_uuid
 
     @property
-    def host_uuids(self) -> [str]:
+    def host_uuids(self) -> List[str]:
         """The hosts to which a volume shall be exported to"""
         return self.__host_uuids
 
     @property
-    def spu_serials(self) -> [str]:
+    def spu_serials(self) -> List[str]:
         """The SPUs from which a volume shall be exported from"""
         return self.__spu_serials
 
@@ -290,9 +287,9 @@ class BatchDeleteLUNInput:
 
     def __init__(
             self,
-            volume_uuid: str,
-            lun_uuids: [str] = None,
-            host_uuids: [str] = None
+            volume_uuid: str = None,
+            lun_uuids: List[str] = None,
+            host_uuids: List[str] = None
     ):
         """Constructs a new input object to delete multiple LUNs
 
@@ -303,11 +300,11 @@ class BatchDeleteLUNInput:
         :type volume_uuid: str
         :param lun_uuids: The list of LUN identifiers that shall be deleted. If
             ``host_uuids`` is not specified this parameter is mandatory.
-        :type lun_uuids: [str], optional
+        :type lun_uuids: List[str], optional
         :param host_uuids: The list of host identifiers from which the LUNs
             shall be deleted. If ``lun_uuids`` is not specified this parameter
             is mandatory.
-        :type host_uuids: [str], optional
+        :type host_uuids: List[str], optional
         """
 
         self.__volume_uuid = volume_uuid
@@ -320,12 +317,12 @@ class BatchDeleteLUNInput:
         return self.__volume_uuid
 
     @property
-    def host_uuids(self) -> [str]:
+    def host_uuids(self) -> List[str]:
         """List of host identifiers from which LUNs shall be deleted"""
-        return self.host_uuids
+        return self.__host_uuids
 
     @property
-    def lun_uuids(self) -> [str]:
+    def lun_uuids(self) -> List[str]:
         """List of LUN identifiers that shall be deleted"""
         return self.__lun_uuids
 
@@ -452,7 +449,7 @@ class LUNList:
             "items", response, LUN, True)
 
     @property
-    def items(self) -> [LUN]:
+    def items(self) -> List[LUN]:
         """List of LUN objects in the pagination list"""
         return self.__items
 
@@ -531,7 +528,8 @@ class LUNsMixin(NebMixin):
 
     def create_lun(
             self,
-            lun_input: CreateLUNInput
+            lun_input: CreateLUNInput,
+            ignore_warnings: bool = False,
     ) -> LUN:
         """Allows creation of a new LUN
 
@@ -540,6 +538,12 @@ class LUNsMixin(NebMixin):
 
         :param lun_input: The parameters that describe the LUN or LUNs to create
         :type lun_input: CreateLUNInput
+        :param ignore_warnings: If specified and set to ``True`` the operation 
+            will proceed even if nebulon ON reports warnings. It is
+            advised to not ignore warnings. Consequently, the default behavior
+            is that the operation will fail when nebulon ON reports
+            validation errors or warnings.
+        :type ignore_warnings: bool, optional
 
         :returns LUN: the created LUN.
 
@@ -555,88 +559,52 @@ class LUNsMixin(NebMixin):
         )
 
         # make the request
+        mutation_name = "createLUNV2"
         response = self._mutation(
-            name="createLUNV2",
+            name=mutation_name,
             params=parameters,
             fields=TokenResponse.fields()
         )
 
         # convert to object and deliver token
-        token_response = TokenResponse(response)
+        token_response = TokenResponse(
+            response=response,
+            ignore_warnings=ignore_warnings,
+        )
         delivery_response = token_response.deliver_token()
 
         # wait for recipe completion
-        # TODO: Nebulon ON now returns a different response
-        recipe_uuid = delivery_response["recipe_uuid_to_wait_on"]
+        self._wait_on_recipes(delivery_response, mutation_name)
+
         npod_uuid = delivery_response["npod_uuid_to_wait_on"]
-        npod_recipe_filter = NPodRecipeFilter(
-                npod_uuid=npod_uuid,
-                recipe_uuid=recipe_uuid)
+        lun_list = self.get_luns(
+            lun_filter=LUNFilter(
+                npod_uuid=UUIDFilter(
+                    equals=npod_uuid
+                )
+            )
+        )
 
-        # set a custom timeout for the create lun process
-        start = datetime.now()
+        if lun_list.filtered_count != 0:
+            return lun_list.items[0]
 
-        while True:
-            sleep(5)
-
-            recipes = self.get_npod_recipes(npod_recipe_filter=npod_recipe_filter)
-
-            # if there is no record in the cloud wait a few more seconds
-            # this case should not exist, but is a safety measure for a
-            # potential race condition
-            if len(recipes.items) != 0:
-
-                # based on the query there should be exactly one
-                recipe = recipes.items[0]
-
-                if recipe.state == RecipeState.Failed:
-                    raise Exception(f"create lun failed: {recipe.status}")
-
-                if recipe.state == RecipeState.Timeout:
-                    raise Exception(f"create lun timeout: {recipe.status}")
-
-                if recipe.state == RecipeState.Cancelled:
-                    raise Exception(f"create lun cancelled: {recipe.status}")
-
-                if recipe.state == RecipeState.Completed:
-                    lun_list = self.get_luns(
-                        lun_filter=LUNFilter(
-                            npod_uuid=UUIDFilter(
-                                equals=npod_uuid
-                            ),
-                            and_filter=LUNFilter(
-                                volume_uuid=UUIDFilter(
-                                    equals=lun_input.volume_uuid
-                                ),
-                                and_filter=LUNFilter(
-                                    lun_id=IntFilter(
-                                        equals=lun_input.lun_id
-                                    )
-                                )
-                            )
-                        )
-                    )
-
-                    if lun_list.filtered_count == 0:
-                        break
-
-                    return lun_list.items[0]
-
-            # Wait time remaining until timeout
-            total_duration = (datetime.now() - start).total_seconds()
-            time_remaining = _TIMEOUT_SECONDS - total_duration
-
-            if time_remaining <= 0:
-                raise Exception("create lun timed out")
+        return None
 
     def delete_lun(
             self,
-            lun_uuid: str
+            lun_uuid: str,
+            ignore_warnings: bool = False,
     ):
         """Allows deletion of a LUN
 
         :param lun_uuid: The unique identifier of the LUN to delete
         :type lun_uuid: str
+        :param ignore_warnings: If specified and set to ``True`` the operation 
+            will proceed even if nebulon ON reports warnings. It is
+            advised to not ignore warnings. Consequently, the default behavior
+            is that the operation will fail when nebulon ON reports
+            validation errors or warnings.
+        :type ignore_warnings: bool, optional
 
         :raises GraphQLError: An error with the GraphQL endpoint.
         """
@@ -653,18 +621,28 @@ class LUNsMixin(NebMixin):
         )
 
         # convert to object and deliver token
-        token_response = TokenResponse(response)
+        token_response = TokenResponse(
+            response=response,
+            ignore_warnings=ignore_warnings,
+        )
         token_response.deliver_token()
 
     def delete_luns(
             self,
-            batch_delete_lun_input: BatchDeleteLUNInput
+            batch_delete_lun_input: BatchDeleteLUNInput,
+            ignore_warnings: bool = False,
     ):
         """Allows deletion of multiple LUNs simultaneously
 
         :param batch_delete_lun_input: An input parameter describing the
             selection criteria for the LUNs to delete.
         :type batch_delete_lun_input: BatchDeleteLUNInput
+        :param ignore_warnings: If specified and set to ``True`` the operation 
+            will proceed even if nebulon ON reports warnings. It is
+            advised to not ignore warnings. Consequently, the default behavior
+            is that the operation will fail when nebulon ON reports
+            validation errors or warnings.
+        :type ignore_warnings: bool, optional
 
 
         :raises GraphQLError: An error with the GraphQL endpoint.
@@ -686,5 +664,8 @@ class LUNsMixin(NebMixin):
         )
 
         # convert to object and deliver token
-        token_response = TokenResponse(response)
+        token_response = TokenResponse(
+            response=response,
+            ignore_warnings=ignore_warnings,
+        )
         token_response.deliver_token()

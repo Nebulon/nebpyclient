@@ -12,6 +12,7 @@
 #
 
 from os import path
+
 from .api import *
 
 # Version for the package
@@ -24,6 +25,7 @@ with open(filename, "r") as fh:
 
 class NebPyClient(
     GraphQLClient,
+    RecipeClient,
     AlertsMixin,
     AuditingMixin,
     DatacentersMixin,
@@ -48,7 +50,8 @@ class NebPyClient(
     UsersMixin,
     VolumeMixin,
     VSphereCredentialsMixin,
-    WebHookMixin
+    WebHookMixin,
+    LomCredentialsMixin,
 ):
     """Nebulon connection"""
 
@@ -59,7 +62,9 @@ class NebPyClient(
             verbose: bool = False,
             log_file: str = None,
             client_name: str = None,
-            client_version: str = None):
+            client_version: str = None,
+            uri: str = API_SERVER_URI,
+    ):
         """Constructs Nebulon Python client instance to interact with Nebulon ON
 
         :param username: nebulon ON username
@@ -91,6 +96,7 @@ class NebPyClient(
             log_file=log_file,
             client_name=client_name,
             client_version=client_version,
+            uri=uri,
         )
 
         login_result = self.login(

@@ -234,6 +234,13 @@ WebHooks
     :members:
     :exclude-members: WebHookMixin
 
+Lom
+-------
+
+.. automodule:: nebpyclient.api.lom
+    :members:
+    :exclude-members: LomCredentialsMixin
+
 
 Indices and tables
 ==================

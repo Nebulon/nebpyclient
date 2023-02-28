@@ -825,7 +825,10 @@ class UpdatesMixin(NebMixin):
         )
 
         # convert to object and deliver token
-        token_response = TokenResponse(response)
+        token_response = TokenResponse(
+            response=response,
+            ignore_warnings=ignore_warnings,
+        )
         token_response.deliver_token()
 
     def get_update_state(
@@ -870,7 +873,8 @@ class UpdatesMixin(NebMixin):
             self,
             spu_serial: str,
             package_name: str,
-            force: bool = False
+            force: bool = False,
+            ignore_warnings: bool = False,
     ):
         """Update nebOS of a SPU to a specific package
 
@@ -883,6 +887,12 @@ class UpdatesMixin(NebMixin):
         :type package_name: str
         :param force: If set to ``True`` the update will bypass any safeguards
         :type force: bool
+        :param ignore_warnings: If specified and set to ``True`` the operation 
+            will proceed even if nebulon ON reports warnings. It is
+            advised to not ignore warnings. Consequently, the default behavior
+            is that the operation will fail when nebulon ON reports
+            validation errors or warnings.
+        :type ignore_warnings: bool, optional
 
         :raises GraphQLError: An error with the GraphQL endpoint.
         :raises Exception: If token delivery failed
@@ -905,13 +915,17 @@ class UpdatesMixin(NebMixin):
         )
 
         # convert to object
-        token_response = TokenResponse(response)
+        token_response = TokenResponse(
+            response=response,
+            ignore_warnings=ignore_warnings,
+        )
         token_response.deliver_token()
 
     def abort_update_spu_firmware(
             self,
             spu_serial: str = None,
-            npod_uuid: str = None
+            npod_uuid: str = None,
+            ignore_warnings: bool = False,
     ):
         """Abort an ongoing firmware update
 
@@ -921,6 +935,12 @@ class UpdatesMixin(NebMixin):
         :type spu_serial: str, optional
         :param npod_uuid: The unique identifier of the nPod
         :type npod_uuid: str, optional
+        :param ignore_warnings: If specified and set to ``True`` the operation 
+            will proceed even if nebulon ON reports warnings. It is
+            advised to not ignore warnings. Consequently, the default behavior
+            is that the operation will fail when nebulon ON reports
+            validation errors or warnings.
+        :type ignore_warnings: bool, optional
 
         :raises GraphQLError: An error with the GraphQL endpoint.
         :raises Exception: If token delivery failed
@@ -941,5 +961,8 @@ class UpdatesMixin(NebMixin):
         )
 
         # convert to object
-        token_response = TokenResponse(response)
+        token_response = TokenResponse(
+            response=response,
+            ignore_warnings=ignore_warnings,
+        )
         token_response.deliver_token()

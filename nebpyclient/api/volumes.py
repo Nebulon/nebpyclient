@@ -11,14 +11,11 @@
 # DEALINGS IN THE SOFTWARE.
 #
 
-from time import sleep
 from .graphqlclient import GraphQLParam, NebMixin
 from datetime import datetime
 from .common import NebEnum, PageInput, read_value
 from .filters import StringFilter, UUIDFilter, IntFilter
 from .sorting import SortDirection
-from .recipe import RecipeState, NPodRecipeFilter
-from .npods import _TIMEOUT_SECONDS
 from .tokens import TokenResponse
 
 __all__ = [
@@ -28,6 +25,7 @@ __all__ = [
     "CreateVolumeInput",
     "DeleteVolumeInput",
     "UpdateVolumeInput",
+    "CreateCloneInput",
     "Volume",
     "VolumeList",
     "VolumeMixin"
@@ -348,30 +346,52 @@ class DeleteVolumeInput:
         return result
 
 
-class UpdateVolumeInput:
-    """An input object to update a volume"""
+class CreateCloneInput:
+    """An input object to create a volume clone
+
+    Allows the creation of a volume clone from a base volume or snapshot.
+    Clones are read and writeable copies of another volume. Clones can be used
+    to quickly instantiate copies of data and data for recovery purposes when
+    applications require read/write access for copy operations.
+    """
 
     def __init__(
             self,
-            name: str = None
+            name: str,
+            volume_uuid: str
     ):
-        """Constructs a new input object to update a new volume.
+        """Constructs a new input object to create a volume clone
 
-        :param name: The new name for the volume
-        :type name: str, optional
+        Allows the creation of a volume clone from a base volume or snapshot.
+        Clones are read and writeable copies of another volume. Clones can be
+        used to quickly instantiate copies of data and data for recovery
+        purposes when applications require read/write access for copy
+        operations.
+
+        :param name: The human readable name for the volume clone
+        :type name: str
+        :param volume_uuid: The unique identifier for the volume or snapshot
+            from which to create the clone
+        :type volume_uuid: str
         """
-
         self.__name = name
+        self.__volume_uuid = volume_uuid
 
     @property
-    def name(self) -> str:
-        """The new name for the volume"""
+    def clone_volume_name(self) -> str:
+        """Name for the volume clone"""
         return self.__name
+
+    @property
+    def origin_volume_uuid(self) -> str:
+        """Unique identifier of the volume or snapshot to clone"""
+        return self.__volume_uuid
 
     @property
     def as_dict(self):
         result = dict()
-        result["name"] = self.name
+        result["cloneVolumeName"] = self.clone_volume_name
+        result["originVolumeUUID"] = self.origin_volume_uuid
         return result
 
 
@@ -379,14 +399,17 @@ class CreateVolumeInput:
     """An input object to create a new volume"""
 
     def __init__(
-            self,
-            name: str,
-            size_bytes: int,
-            npod_uuid: str,
-            mirrored: bool = None,
-            owner_spu_serial: str = None,
-            backup_spu_serial: str = None,
-            force: bool = None
+        self,
+        name: str,
+        size_bytes: int,
+        npod_uuid: str,
+        mirrored: bool = None,
+        owner_spu_serial: str = None,
+        backup_spu_serial: str = None,
+        force: bool = None,
+        download_contents_url: str = None,
+        replace_lun: str = None,
+        boot: bool = None,
     ):
         """Constructs a new input object to create a new volume.
 
@@ -414,6 +437,15 @@ class CreateVolumeInput:
             available capacity available. By default the volume creation will
             fail if there is not enough capacity available
         :type force: bool, optional
+        :param download_contents_url: If specified, the contents of the given
+            URL will be downloaded to the newly created volume.
+        :type download_contents_url: str, optional
+        :param replace_lun: If specified, the given lun will be replaced after
+            the download completes and the host reboots.  Lun 0 of the owner
+            SPU will be used if the UUID is 00000000-0000-0000-0000-000000000000.
+        :type replace_lun: str, optional
+        :param boot: indicates if the volume is a boot volume
+        :type boot: bool, optional
         """
 
         self.__name = name
@@ -423,6 +455,9 @@ class CreateVolumeInput:
         self.__owner_spu_serial = owner_spu_serial
         self.__backup_spu_serial = backup_spu_serial
         self.__force = force
+        self.__download_contents_url = download_contents_url
+        self.__replace_lun = replace_lun
+        self.__boot = boot
 
     @property
     def name(self) -> str:
@@ -460,6 +495,22 @@ class CreateVolumeInput:
         return self.__force
 
     @property
+    def download_contents_url(self) -> str:
+        """Contents of the given URL will be downloaded to the newly created volume"""
+        return self.__download_contents_url
+
+    @property
+    def replace_lun(self) -> str:
+        """Given lun will be replaced after the download completes and the host reboots.
+            Lun 0 of the owner SPU will be used if the UUID is 00000000-0000-0000-0000-000000000000"""
+        return self.__replace_lun
+
+    @property
+    def boot(self) -> bool:
+        """Indicates if the volume is a boot volume"""
+        return self.__boot
+
+    @property
     def as_dict(self):
         result = dict()
         result["name"] = self.name
@@ -469,6 +520,9 @@ class CreateVolumeInput:
         result["ownerSPUSerial"] = self.owner_spu_serial
         result["backupSPUSerial"] = self.backup_spu_serial
         result["force"] = self.force
+        result["downloadContentsURL"] = self.__download_contents_url
+        result["replaceLun"] = self.__replace_lun
+        result["boot"] = self.__boot
         return result
 
 
@@ -491,7 +545,6 @@ class UpdateVolumeInput:
     def name(self) -> str:
         """The new name for the volume"""
         return self.__name
-
 
     @property
     def as_dict(self):
@@ -778,7 +831,8 @@ class VolumeMixin(NebMixin):
 
     def create_volume(
             self,
-            create_volume_input: CreateVolumeInput
+            create_volume_input: CreateVolumeInput,
+            ignore_warnings: bool = False,
     ) -> Volume:
         """Allows creation of a new volume
 
@@ -786,6 +840,12 @@ class VolumeMixin(NebMixin):
         :param create_volume_input: An input object that describes the
             volume to be created
         :type create_volume_input: CreateVolumeInput
+        :param ignore_warnings: If specified and set to ``True`` the operation 
+            will proceed even if nebulon ON reports warnings. It is
+            advised to not ignore warnings. Consequently, the default behavior
+            is that the operation will fail when nebulon ON reports
+            validation errors or warnings.
+        :type ignore_warnings: bool, optional
 
         :returns Volume: The created volume
 
@@ -802,79 +862,47 @@ class VolumeMixin(NebMixin):
         )
 
         # make the request
+        mutation_name = "createVolumeV3"
         response = self._mutation(
-            name="createVolumeV3",
+            name=mutation_name,
             params=parameters,
             fields=TokenResponse.fields()
         )
 
         # convert to object and deliver token
-        token_response = TokenResponse(response)
+        token_response = TokenResponse(
+            response=response,
+            ignore_warnings=ignore_warnings,
+        )
         delivery_response = token_response.deliver_token()
 
         # wait for recipe completion
-        # TODO: Nebulon ON now returns a different response
-        recipe_uuid = delivery_response["recipe_uuid_to_wait_on"]
+        self._wait_on_recipes(delivery_response, mutation_name)
+
         npod_uuid = delivery_response["npod_uuid_to_wait_on"]
-        npod_recipe_filter = NPodRecipeFilter(
-                npod_uuid=npod_uuid,
-                recipe_uuid=recipe_uuid)
-
-        # set a custom timeout for the create volume process
-        start = datetime.now()
-
-        while True:
-            sleep(5)
-
-            recipes = self.get_npod_recipes(npod_recipe_filter=npod_recipe_filter)
-
-            # if there is no record in the cloud wait a few more seconds
-            # this case should not exist, but is a safety measure for a
-            # potential race condition
-            if len(recipes.items) != 0:
-
-                # based on the query there should be exactly one
-                recipe = recipes.items[0]
-
-                if recipe.state == RecipeState.Failed:
-                    raise Exception(f"create volume failed: {recipe.status}")
-
-                if recipe.state == RecipeState.Timeout:
-                    raise Exception(f"create volume timeout: {recipe.status}")
-
-                if recipe.state == RecipeState.Cancelled:
-                    raise Exception(f"create volume cancelled: {recipe.status}")
-
-                if recipe.state == RecipeState.Completed:
-                    volume_list = self.get_volumes(
-                        volume_filter=VolumeFilter(
-                            npod_uuid=UUIDFilter(
-                                equals=npod_uuid
-                            ),
-                            and_filter=VolumeFilter(
-                                name=StringFilter(
-                                    equals=create_volume_input.name
-                                )
-                            )
-                        )
+        volume_list = self.get_volumes(
+            volume_filter=VolumeFilter(
+                npod_uuid=UUIDFilter(
+                    equals=npod_uuid
+                ),
+                and_filter=VolumeFilter(
+                    name=StringFilter(
+                        equals=create_volume_input.name
                     )
+                )
+            )
+        )
 
-                    if volume_list.filtered_count == 0:
-                        break
-
-                    return volume_list.items[0]
-
-            # Wait time remaining until timeout
-            total_duration = (datetime.now() - start).total_seconds()
-            time_remaining = _TIMEOUT_SECONDS - total_duration
-
-            if time_remaining <= 0:
-                raise Exception("create volume timed out")
+        if volume_list.filtered_count != 0:
+            return volume_list.items[0]
+        
+        return None
 
     def delete_volume(
             self,
             uuid: str,
-            cascade: bool = False
+            cascade: bool = False,
+            ignore_warnings: bool = False,
     ):
         """Allows deletion of a volume
 
@@ -884,6 +912,12 @@ class VolumeMixin(NebMixin):
             with the parent volume. If set to False, only this volume is
             deleted
         :type cascade: bool, optional
+        :param ignore_warnings: If specified and set to ``True`` the operation 
+            will proceed even if nebulon ON reports warnings. It is
+            advised to not ignore warnings. Consequently, the default behavior
+            is that the operation will fail when nebulon ON reports
+            validation errors or warnings.
+        :type ignore_warnings: bool, optional
 
         :raises GraphQLError: An error with the GraphQL endpoint.
         :raises Exception: An error when delivering a token to the SPU
@@ -912,13 +946,17 @@ class VolumeMixin(NebMixin):
         )
 
         # convert to object and deliver token
-        token_response = TokenResponse(response)
+        token_response = TokenResponse(
+            response=response,
+            ignore_warnings=ignore_warnings,
+        )
         token_response.deliver_token()
 
     def update_volume(
             self,
             uuid: str,
-            update_volume_input: UpdateVolumeInput
+            update_volume_input: UpdateVolumeInput,
+            ignore_warnings: bool = False,
     ):
         """Allows deletion of a volume
 
@@ -927,6 +965,12 @@ class VolumeMixin(NebMixin):
         :param update_volume_input: An input object that describes the changes
             to apply to the volume
         :type update_volume_input: UpdateVolumeInput
+        :param ignore_warnings: If specified and set to ``True`` the operation 
+            will proceed even if nebulon ON reports warnings. It is
+            advised to not ignore warnings. Consequently, the default behavior
+            is that the operation will fail when nebulon ON reports
+            validation errors or warnings.
+        :type ignore_warnings: bool, optional
 
         :raises GraphQLError: An error with the GraphQL endpoint.
         :raises Exception: An error when delivering a token to the SPU
@@ -953,5 +997,79 @@ class VolumeMixin(NebMixin):
         )
 
         # convert to object and deliver token
-        token_response = TokenResponse(response)
+        token_response = TokenResponse(
+            response=response,
+            ignore_warnings=ignore_warnings,
+        )
         token_response.deliver_token()
+
+    def create_clone(
+        self,
+        create_clone_input: CreateCloneInput,
+        ignore_warnings: bool = False,
+    ) -> Volume:
+        """Create a clone of a volume
+
+        Clones are exact copies of volumes or snapshots. In contrast to
+        immutable snapshots, clones are mutable copies and can be written to by
+        hosts.
+
+        :param create_clone_input: An input object that describes the clone
+        :type create_clone_input: CreateCloneInput
+        :param ignore_warnings: If specified and set to ``True`` the operation 
+            will proceed even if nebulon ON reports warnings. It is
+            advised to not ignore warnings. Consequently, the default behavior
+            is that the operation will fail when nebulon ON reports
+            validation errors or warnings.
+        :type ignore_warnings: bool, optional
+
+        :returns Volume: The created volume
+
+        :raises GraphQLError: An error with the GraphQL endpoint.
+        :raises Exception: An error when delivering a token to the SPU
+        """
+
+        # setup query parameters
+        parameters = dict()
+        parameters["input"] = GraphQLParam(
+            create_clone_input,
+            "CreateCloneInput",
+            True
+        )
+
+        # make the request
+        mutation_name = "createCloneV2"
+        response = self._mutation(
+            name=mutation_name,
+            params=parameters,
+            fields=TokenResponse.fields()
+        )
+
+        # convert to object and deliver token
+        token_response = TokenResponse(
+            response=response,
+            ignore_warnings=ignore_warnings,
+        )
+        delivery_response = token_response.deliver_token()
+
+        # wait for recipe completion
+        self._wait_on_recipes(delivery_response, mutation_name)
+
+        npod_uuid = delivery_response["npod_uuid_to_wait_on"]
+        volume_list = self.get_volumes(
+            volume_filter=VolumeFilter(
+                npod_uuid=UUIDFilter(
+                    equals=npod_uuid
+                ),
+                and_filter=VolumeFilter(
+                    name=StringFilter(
+                        equals=create_clone_input.clone_volume_name
+                    )
+                )
+            )
+        )
+
+        if volume_list.filtered_count != 0:
+            return volume_list.items[0]
+        
+        return None

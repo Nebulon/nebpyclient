@@ -14,9 +14,11 @@
 import platform
 import os
 import json
+from typing import List, Dict, Any
 from enum import Enum, IntEnum
 from requests import Session
 from datetime import datetime
+from .constants import API_SERVER_URI
 
 __all__ = [
     "NebMixin",
@@ -24,11 +26,6 @@ __all__ = [
     "GraphQLClient",
     "GraphQLError"
 ]
-
-# TODO: Refactor methods - works for now
-
-_API_SERVER_URI = "https://ucapi.nebcloud.nebuloninc.com/query"
-_API_TIMEOUT_SECONDS = 60
 
 
 class ConsoleColor(IntEnum):
@@ -87,7 +84,7 @@ class NebMixin:
             self,
             name: str,
             params: dict = None,
-            fields: [str] = None
+            fields: List[str] = None
     ) -> any:
         """Run a GraphQL mutation.
 
@@ -98,7 +95,7 @@ class NebMixin:
         :type params: dict
         :param fields: A list of fields that shall be returned by the
             GraphQL query
-        :type fields: [str], optional
+        :type fields: List[str], optional
 
         :returns any: The response from the server
 
@@ -110,7 +107,7 @@ class NebMixin:
             self,
             name: str,
             params: dict = None,
-            fields: [str] = None
+            fields: List[str] = None
     ) -> any:
         """Run a GraphQL query.
 
@@ -121,11 +118,27 @@ class NebMixin:
         :type params: dict
         :param fields: A list of fields that shall be returned by the
             GraphQL query
-        :type fields: [str], optional
+        :type fields: List[str], optional
 
         :returns any: The response from the server
 
         :raises GraphQLError:  An error raised by the GraphQL endpoint.
+        """
+        pass
+
+    def _wait_on_recipes(
+        self,
+        delivery_response: Dict[str, Any],
+        mutation_name: str,
+    ):
+        """
+        :param delivery_response: A dictionary of different token responses
+        :type delivery_response: Dict
+        :param mutation_name: The name of the mutation that was used to initiate recipes
+        :type mutation_name: str
+
+        :raises GraphQLError: An error with the GraphQL endpoint.
+        :raises Exception: An Exception if any of the recipe statuses were not completed.
         """
         pass
 
@@ -215,7 +228,7 @@ class GraphQLError(Exception):
             self.errors.append(error["message"])
 
     @property
-    def errors(self) -> [str]:
+    def errors(self) -> List[str]:
         """List of error messages in this GraphQLError"""
         return self.__errors
 
@@ -250,18 +263,26 @@ class GraphQLClient:
             log_file: str = None,
             client_name: str = None,
             client_version: str = None,
+            uri: str = API_SERVER_URI,
     ):
         """Constructs a new GraphQL client
 
         :param verbose: If set to ``True`` debug information is printed to the
             console
         :type verbose: bool, optional
-        :param log_file: If provided, the SDK will print log information to the file instead of the console.
+        :param log_file: If provided, the SDK will print log information to
+            the file instead of the console.
         :type log_file: str
-        :param client_name: Allows specifying a custom application name for auditing
+        :param client_name: Allows specifying a custom application name for
+            auditing
         :type client_name: str, optional
-        :param client_version: Allows specifying a custom application version for auditing
+        :param client_version: Allows specifying a custom application version
+            for auditing
         :type client_version: str, optional
+        :param uri: Allows the configuration of a different nebulon ON API
+            endpoint. This is mostly used for testing and should not be used
+            by users in production.
+        :type uri: str, optional
         """
 
         # initialize a reusable session
@@ -283,14 +304,14 @@ class GraphQLClient:
                     client_version = fh.read().strip()
 
             except OSError:
-                client_version="unknown"
+                client_version = "unknown"
 
         self.session.headers.update({
             "Nebulon-Client-App": f"{client_name}/{client_version}",
             "Nebulon-Client-Platform": f"{client_system}/{client_release}"
         })
 
-        self.uri = _API_SERVER_URI
+        self.uri = uri
         self.verbose = verbose
         self.log_file = log_file
 
@@ -351,14 +372,13 @@ class GraphQLClient:
 
         :raises GraphQLError: An error with the GraphQL endpoint.
         """
-        uri = _API_SERVER_URI
 
         dict_vars = self._convert_dict(obj=variables)
 
         # DEBUG INFORMATION
         if self.verbose:
             self._print("URI")
-            self._print(uri, color=ConsoleColor.Yellow)
+            self._print(self.uri, color=ConsoleColor.Yellow)
             self._print("DATA")
             self._print(method, color=ConsoleColor.Yellow)
             self._print("VARIABLES")
@@ -395,11 +415,11 @@ class GraphQLClient:
                     data[file_stream[0]] = (file_stream[1], f.read())
 
             # make the request
-            response = self.session.post(uri, files=data)
+            response = self.session.post(self.uri, files=data)
         else:
             data["query"] = method
             data["variables"] = dict_vars
-            response = self.session.post(uri, json=data)
+            response = self.session.post(self.uri, json=data)
 
         json_data = response.json()
 
@@ -521,7 +541,7 @@ class GraphQLClient:
             self,
             name: str,
             params: dict = None,
-            fields: [str] = None
+            fields: List[str] = None
     ) -> any:
         """Run a GraphQL mutation.
 
@@ -530,7 +550,7 @@ class GraphQLClient:
         :param params: Parameters for the GraphQL mutation
         :type params: dict, optional
         :param fields: Fields to query the result for
-        :type fields: [str], optional
+        :type fields: List[str], optional
 
         :returns any: The response from the server
 
@@ -552,7 +572,7 @@ class GraphQLClient:
             self,
             name: str,
             params: dict = None,
-            fields: [str] = None
+            fields: List[str] = None
     ) -> any:
         """Run a GraphQL query.
 
@@ -561,7 +581,7 @@ class GraphQLClient:
         :param params: Parameters for the GraphQL query
         :type params: dict, optional
         :param fields: Fields to query the result for
-        :type fields: [str], optional
+        :type fields: List[str], optional
 
         :returns any: The response from the server
 
@@ -584,7 +604,7 @@ class GraphQLClient:
             method: str,
             name: str,
             params: dict = None,
-            fields: [str] = None
+            fields: List[str] = None
     ) -> str:
         """Create a str formatted GraphQL method from the provided parameters
 
@@ -596,7 +616,7 @@ class GraphQLClient:
         :param params: Parameters for the GraphQL query
         :type params: dict, optional
         :param fields: List of fields to return by the GraphQL query
-        :type fields: [str], optional
+        :type fields: List[str], optional
 
         :returns str: A str encoded GraphQL query.
 

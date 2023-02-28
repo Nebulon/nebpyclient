@@ -448,7 +448,9 @@ class AlertsMixin(NebMixin):
             page: PageInput = None,
             alert_filter: AlertFilter = None
     ) -> AlertList:
-        """Retrieves a list of open alerts
+        """
+        Retrieves a list of open alerts. Will still fetch open alerts even if
+        status field in alert_filter is set to 'Closed'.
 
         :param page: The requested page from the server. This is an optional
             argument and if omitted the server will default to returning the

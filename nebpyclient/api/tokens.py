@@ -11,13 +11,12 @@
 # DEALINGS IN THE SOFTWARE.
 #
 
+import json
 import requests
 from .common import read_value
 from .issues import Issues
 
-TOKEN_TIMEOUT_SECONDS = 30
-"""Timeout for token delivery"""
-
+from .constants import TOKEN_TIMEOUT_SECONDS
 
 class MustSendTargetDNS:
     """Used in mutations for on-premises infrastructure via security triangle
@@ -73,7 +72,8 @@ class TokenResponse:
 
     def __init__(
             self,
-            response: dict
+            response: dict,
+            ignore_warnings: bool = False,
     ):
         """Constructs a new TokenResponse object
 
@@ -83,6 +83,12 @@ class TokenResponse:
 
         :param response: The JSON response from the server
         :type response: dict
+        :param ignore_warnings: If specified and set to ``True`` the mutation 
+            will proceed even if nebulon ON reports warnings. It is
+            advised to not ignore warnings. Consequently, the default behavior
+            is that the mutation will fail when nebulon ON reports
+            validation errors or warnings.
+        :type ignore_warnings: bool, optional
 
         :raises ValueError: An error if illegal data is returned from the server
         """
@@ -98,6 +104,9 @@ class TokenResponse:
             "mustSendTargetDNS", response, MustSendTargetDNS, False)
         self.__issues = read_value(
             "issues", response, Issues, False)
+        
+        if self.issues is not None:
+            self.issues.assert_no_issues(ignore_warnings=ignore_warnings)
 
     @property
     def token(self) -> str:
@@ -155,7 +164,11 @@ class TokenResponse:
                 response_text = response.text.strip()
                 if response_text == "OK" or response_text == "\"OK\"":
                     return True
-                return response.json()
+                
+                try:
+                    return response.json()
+                except json.JSONDecodeError as e:
+                    raise Exception(f"Unexpected response from {ip}: {response_text}")
 
             # if we got here, there was an error
             reason = response.text
